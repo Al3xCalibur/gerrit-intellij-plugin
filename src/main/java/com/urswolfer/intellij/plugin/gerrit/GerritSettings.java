@@ -116,7 +116,7 @@ public class GerritSettings implements PersistentStateComponent<Element>, Gerrit
     private boolean getBooleanValue(Element element, String attributeName) {
         String attributeValue = element.getAttributeValue(attributeName);
         if (attributeValue != null) {
-            return Boolean.valueOf(attributeValue);
+            return Boolean.parseBoolean(attributeValue);
         } else {
             return false;
         }
@@ -125,7 +125,7 @@ public class GerritSettings implements PersistentStateComponent<Element>, Gerrit
     private int getIntegerValue(Element element, String attributeName) {
         String attributeValue = element.getAttributeValue(attributeName);
         if (attributeValue != null) {
-            return Integer.valueOf(attributeValue);
+            return Integer.parseInt(attributeValue);
         } else {
             return 0;
         }

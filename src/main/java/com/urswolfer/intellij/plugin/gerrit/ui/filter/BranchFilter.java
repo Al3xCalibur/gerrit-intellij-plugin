@@ -100,7 +100,7 @@ public class BranchFilter extends AbstractChangesFilter {
                 });
                 List<GitRemoteBranch> branches = Lists.newArrayList(repository.getBranches().getRemoteBranches());
                 Ordering<GitRemoteBranch> ordering = Ordering.natural().onResultOf((Function<GitRemoteBranch, String>) GitRemoteBranch::getNameForRemoteOperations);
-                Collections.sort(branches, ordering);
+                branches.sort(ordering);
                 for (final GitRemoteBranch branch : branches) {
                     if (!branch.getNameForRemoteOperations().equals("HEAD")) {
                         group.add(new DumbAwareAction(branch.getNameForRemoteOperations()) {

@@ -227,9 +227,7 @@ public class GerritChangeListPanel extends JPanel implements Consumer<LoadChange
             branch = getMax(branch, getBranch(change));
             time = getMax(time, getTime(change));
             if (change.labels != null) {
-                for (String label : change.labels.keySet()) {
-                    availableLabels.add(label);
-                }
+                availableLabels.addAll(change.labels.keySet());
             }
         }
 
@@ -358,7 +356,7 @@ public class GerritChangeListPanel extends JPanel implements Consumer<LoadChange
         }
         columnList.add(selectRevisionInfoColumn);
 
-        return columnList.toArray(new ColumnInfo[columnList.size()]);
+        return columnList.toArray(new ColumnInfo[0]);
     }
 
     private boolean hasProjectMultipleRepos() {

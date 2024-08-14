@@ -86,7 +86,7 @@ public class ReviewActionGroup extends ActionGroup implements UpdateInBackground
                 labels.add(createLabelGroup(entry));
             }
         }
-        return labels.toArray(new AnAction[labels.size()]);
+        return labels.toArray(new AnAction[0]);
     }
 
     private ActionGroup createLabelGroup(final Map.Entry<String, Collection<String>> entry) {
@@ -108,7 +108,7 @@ public class ReviewActionGroup extends ActionGroup implements UpdateInBackground
                     valueActions.add(reviewActionFactory.get(entry.getKey(), value, ICONS.get(value), false));
                     valueActions.add(reviewActionFactory.get(entry.getKey(), value, ICONS.get(value), true));
                 }
-                return valueActions.toArray(new AnAction[valueActions.size()]);
+                return valueActions.toArray(new AnAction[0]);
             }
         };
     }

@@ -70,7 +70,7 @@ public class GerritPushExtensionPanel extends JPanel {
     private JTextField reviewersTextField;
     private JTextField ccTextField;
     private JTextField patchsetDescriptionTextField;
-    private Map<GerritPushTargetPanel, String> gerritPushTargetPanels = Maps.newHashMap();
+    private final Map<GerritPushTargetPanel, String> gerritPushTargetPanels = Maps.newHashMap();
     private boolean initialized = false;
 
     public GerritPushExtensionPanel(boolean pushToGerritByDefault) {

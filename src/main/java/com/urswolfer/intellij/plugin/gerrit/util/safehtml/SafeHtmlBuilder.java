@@ -212,9 +212,9 @@ public class SafeHtmlBuilder extends SafeHtml {
    * @param value additional value to append.
    */
   public SafeHtmlBuilder appendAttribute(String name, String value) {
-    if (value != null && value.length() > 0) {
+    if (value != null && !value.isEmpty()) {
       final String e = getAttribute(name);
-      return setAttribute(name, e.length() > 0 ? e + " " + value : value);
+      return setAttribute(name, !e.isEmpty() ? e + " " + value : value);
     }
     return this;
   }

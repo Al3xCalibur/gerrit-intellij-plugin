@@ -187,7 +187,7 @@ public class CommentsDiffTool implements FrameDiffTool, SuppressiveDiffTool {
                 public void consume(Map<String, List<CommentInfo>> comments) {
                     List<CommentInfo> fileComments = comments.get(relativeFilePath);
                     if (fileComments != null) {
-                        Collections.sort(fileComments, COMMENT_ORDERING);
+                        fileComments.sort(COMMENT_ORDERING);
                         addCommentsGutter(
                                 editor1,
                                 relativeFilePath,

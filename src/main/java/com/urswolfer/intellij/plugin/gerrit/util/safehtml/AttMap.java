@@ -51,7 +51,7 @@ class AttMap {
   void onto(Buffer raw, SafeHtmlBuilder esc) {
     for (int i = 0; i < live; i++) {
       final String v = values.get(i);
-      if (v.length() > 0) {
+      if (!v.isEmpty()) {
         raw.append(" ");
         raw.append(names.get(i));
         raw.append("=\"");
