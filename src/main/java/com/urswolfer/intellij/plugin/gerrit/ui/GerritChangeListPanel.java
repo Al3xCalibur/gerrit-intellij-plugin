@@ -110,24 +110,16 @@ public class GerritChangeListPanel extends JPanel implements Consumer<LoadChange
 
         setLayout(new BorderLayout());
         scrollPane = ScrollPaneFactory.createScrollPane(table);
-        scrollPane.getVerticalScrollBar().addAdjustmentListener(new AdjustmentListener() {
-            @Override
-            public void adjustmentValueChanged(AdjustmentEvent e) {
-                if (!loadingMoreChanges && loadChangesProxy != null) {
-                    loadingMoreChanges = true;
-                    try {
-                        int lowerEnd = e.getAdjustable().getVisibleAmount() + e.getAdjustable().getValue();
-                        if (lowerEnd == e.getAdjustable().getMaximum()) {
-                            loadChangesProxy.getNextPage(new Consumer<List<ChangeInfo>>() {
-                                @Override
-                                public void consume(List<ChangeInfo> changeInfos) {
-                                    addChanges(changeInfos);
-                                }
-                            });
-                        }
-                    } finally {
-                        loadingMoreChanges = false;
+        scrollPane.getVerticalScrollBar().addAdjustmentListener(e -> {
+            if (!loadingMoreChanges && loadChangesProxy != null) {
+                loadingMoreChanges = true;
+                try {
+                    int lowerEnd = e.getAdjustable().getVisibleAmount() + e.getAdjustable().getValue();
+                    if (lowerEnd == e.getAdjustable().getMaximum()) {
+                        loadChangesProxy.getNextPage(this::addChanges);
                     }
+                } finally {
+                    loadingMoreChanges = false;
                 }
             }
         });
@@ -158,12 +150,8 @@ public class GerritChangeListPanel extends JPanel implements Consumer<LoadChange
             "If you expect changes, there might be a configuration issue. " +
             "Click "
         );
-        emptyText.appendText("here", SimpleTextAttributes.LINK_ATTRIBUTES, new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                BrowserUtil.browse("https://github.com/uwolfer/gerrit-intellij-plugin#list-of-changes-is-empty");
-            }
-        });
+        emptyText.appendText("here", SimpleTextAttributes.LINK_ATTRIBUTES,actionEvent ->
+            BrowserUtil.browse("https://github.com/uwolfer/gerrit-intellij-plugin#list-of-changes-is-empty"));
         emptyText.appendText(" for hints.");
     }
 
@@ -171,12 +159,8 @@ public class GerritChangeListPanel extends JPanel implements Consumer<LoadChange
         if (!gerritSettings.isLoginAndPasswordAvailable()) {
             StatusText emptyText = table.getEmptyText();
             emptyText.appendText("Open ");
-            emptyText.appendText("settings", SimpleTextAttributes.LINK_ATTRIBUTES, new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent actionEvent) {
-                    showSettingsUtil.showSettingsDialog(project, GerritSettingsConfigurable.NAME);
-                }
-            });
+            emptyText.appendText("settings", SimpleTextAttributes.LINK_ATTRIBUTES, actionEvent ->
+                showSettingsUtil.showSettingsDialog(project, GerritSettingsConfigurable.NAME));
             emptyText.appendText(" to configure this plugin and press the refresh button afterwards.");
         }
     }
@@ -185,13 +169,11 @@ public class GerritChangeListPanel extends JPanel implements Consumer<LoadChange
      * Adds a listener that would be called once user selects a change in the table.
      */
     public void addListSelectionListener(final @NotNull Consumer<ChangeInfo> listener) {
-        table.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            public void valueChanged(final ListSelectionEvent e) {
-                ListSelectionModel lsm = (ListSelectionModel) e.getSource();
-                int i = lsm.getMaxSelectionIndex();
-                if (i >= 0 && !e.getValueIsAdjusting()) {
-                    listener.consume(changes.get(i));
-                }
+        table.getSelectionModel().addListSelectionListener(e -> {
+            ListSelectionModel lsm = (ListSelectionModel) e.getSource();
+            int i = lsm.getMaxSelectionIndex();
+            if (i >= 0 && !e.getValueIsAdjusting()) {
+                listener.consume(changes.get(i));
             }
         });
     }

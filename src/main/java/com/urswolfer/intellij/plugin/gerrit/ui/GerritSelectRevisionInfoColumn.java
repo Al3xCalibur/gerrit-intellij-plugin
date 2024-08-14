@@ -55,12 +55,8 @@ public class GerritSelectRevisionInfoColumn extends ColumnInfo<ChangeInfo, Strin
     @Inject
     private SelectedRevisions selectedRevisions;
 
-    private static final Function<Map.Entry<String, RevisionInfo>, Pair<String, RevisionInfo>> MAP_ENTRY_TO_PAIR = new Function<Map.Entry<String, RevisionInfo>, Pair<String, RevisionInfo>>() {
-        @Override
-        public Pair<String, RevisionInfo> apply(Map.Entry<String, RevisionInfo> entry) {
-            return Pair.create(entry.getKey(), entry.getValue());
-        }
-    };
+    private static final Function<Map.Entry<String, RevisionInfo>, Pair<String, RevisionInfo>> MAP_ENTRY_TO_PAIR = entry ->
+        Pair.create(entry.getKey(), entry.getValue());
 
     public GerritSelectRevisionInfoColumn() {
         super("Patch Set");
@@ -156,17 +152,14 @@ public class GerritSelectRevisionInfoColumn extends ColumnInfo<ChangeInfo, Strin
     }
 
     private Function<Pair<String, RevisionInfo>, String> getRevisionLabelFunction(final ChangeInfo changeInfo) {
-        return new Function<Pair<String, RevisionInfo>, String>() {
-            @Override
-            public String apply(Pair<String, RevisionInfo> revisionInfo) {
-                int size = changeInfo.revisions.size();
-                int number = revisionInfo.getSecond()._number;
-                String revision = revisionInfo.getFirst().substring(0, 7);
-                if (size < number) { // size not available in older Gerrit versions
-                    return String.format("%s: %s", number, revision);
-                }
-                return String.format("%s/%s: %s", number, size, revision);
+        return revisionInfo -> {
+            int size = changeInfo.revisions.size();
+            int number = revisionInfo.getSecond()._number;
+            String revision = revisionInfo.getFirst().substring(0, 7);
+            if (size < number) { // size not available in older Gerrit versions
+                return String.format("%s: %s", number, revision);
             }
+            return String.format("%s/%s: %s", number, size, revision);
         };
     }
 }

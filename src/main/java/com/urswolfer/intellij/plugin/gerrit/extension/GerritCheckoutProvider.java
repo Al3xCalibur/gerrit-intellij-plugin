@@ -64,11 +64,7 @@ import java.util.List;
  */
 public class GerritCheckoutProvider implements CheckoutProvider {
 
-    private static final Function<ProjectInfo, String> GET_ID_FUNCTION = new Function<ProjectInfo, String>() {
-        public String apply(ProjectInfo from) {
-            return from.id;
-        }
-    };
+    private static final Function<ProjectInfo, String> GET_ID_FUNCTION = from -> from.id;
     private static final Ordering<ProjectInfo> ID_REVERSE_ORDERING = Ordering.natural().onResultOf(GET_ID_FUNCTION).reverse();
 
     @Inject

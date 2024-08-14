@@ -99,12 +99,7 @@ public class BranchFilter extends AbstractChangesFilter {
                     }
                 });
                 List<GitRemoteBranch> branches = Lists.newArrayList(repository.getBranches().getRemoteBranches());
-                Ordering<GitRemoteBranch> ordering = Ordering.natural().onResultOf(new Function<GitRemoteBranch, String>() {
-                    @Override
-                    public String apply(GitRemoteBranch branch) {
-                        return branch.getNameForRemoteOperations();
-                    }
-                });
+                Ordering<GitRemoteBranch> ordering = Ordering.natural().onResultOf((Function<GitRemoteBranch, String>) GitRemoteBranch::getNameForRemoteOperations);
                 Collections.sort(branches, ordering);
                 for (final GitRemoteBranch branch : branches) {
                     if (!branch.getNameForRemoteOperations().equals("HEAD")) {

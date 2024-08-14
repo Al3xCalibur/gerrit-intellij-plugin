@@ -83,9 +83,7 @@ public class ReviewAction extends AbstractLoggedInChangeAction {
         }
         final ChangeInfo changeDetails = selectedChange.get();
         gerritUtil.getComments(changeDetails._number, selectedRevisions.get(changeDetails), project, false, true,
-                new Consumer<Map<String, List<CommentInfo>>>() {
-            @Override
-            public void consume(Map<String, List<CommentInfo>> draftComments) {
+            draftComments -> {
                 final ReviewInput reviewInput = new ReviewInput();
                 reviewInput.label(label, rating);
 
@@ -132,8 +130,7 @@ public class ReviewAction extends AbstractLoggedInChangeAction {
                             }
                         }
                 );
-            }
-        });
+            });
     }
 
     private void addComment(ReviewInput reviewInput, String path, CommentInfo comment) {

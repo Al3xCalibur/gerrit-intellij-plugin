@@ -139,14 +139,11 @@ public class AddCommentAction extends AnAction implements DumbAware, UpdateInBac
         }
 
         gerritUtil.saveDraftComment(changeInfo._number, revisionId, comment, project,
-                new Consumer<CommentInfo>() {
-                    @Override
-                    public void consume(CommentInfo commentInfo) {
-                        if (commentToEdit != null) {
-                            commentsDiffTool.removeComment(project, editor, lineHighlighter, rangeHighlighter);
-                        }
-                        commentsDiffTool.addComment(editor, changeInfo, revisionId, project, commentInfo);
-                    }
-                });
+            commentInfo -> {
+                if (commentToEdit != null) {
+                    commentsDiffTool.removeComment(project, editor, lineHighlighter, rangeHighlighter);
+                }
+                commentsDiffTool.addComment(editor, changeInfo, revisionId, project, commentInfo);
+            });
     }
 }

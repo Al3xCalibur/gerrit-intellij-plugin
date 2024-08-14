@@ -75,12 +75,7 @@ public class CommentDoneAction extends AnAction implements DumbAware, UpdateInBa
 
         final Project project = e.getData(PlatformDataKeys.PROJECT);
         gerritUtil.saveDraftComment(changeInfo._number, revisionId, comment, project,
-                new Consumer<CommentInfo>() {
-                    @Override
-                    public void consume(CommentInfo commentInfo) {
-                        commentsDiffTool.addComment(editor, changeInfo, revisionId, project, commentInfo);
-                    }
-                });
+            commentInfo -> commentsDiffTool.addComment(editor, changeInfo, revisionId, project, commentInfo));
     }
 
     @Override

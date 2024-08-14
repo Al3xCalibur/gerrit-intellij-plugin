@@ -63,12 +63,9 @@ public class GerritCommentCountChangeNodeDecorator implements GerritChangeNodeDe
     @Inject
     public GerritCommentCountChangeNodeDecorator(SelectedRevisions selectedRevisions) {
         this.selectedRevisions = selectedRevisions;
-        this.selectedRevisions.addObserver(new Observer() {
-            @Override
-            public void update(Observable o, Object arg) {
-                if (arg instanceof String && selectedChange != null && selectedChange.id.equals(arg)) {
-                    refreshSuppliers();
-                }
+        this.selectedRevisions.addObserver((o, arg) -> {
+            if (selectedChange != null && selectedChange.id.equals(arg)) {
+                refreshSuppliers();
             }
         });
     }
@@ -138,58 +135,49 @@ public class GerritCommentCountChangeNodeDecorator implements GerritChangeNodeDe
     }
 
     private Supplier<Map<String, List<CommentInfo>>> setupCommentsSupplier() {
-        return Suppliers.memoize(new Supplier<Map<String, List<CommentInfo>>>() {
-            @Override
-            public Map<String, List<CommentInfo>> get() {
-                try {
-                    return gerritApi.changes()
-                            .id(selectedChange.id)
-                            .revision(getSelectedRevisionId())
-                            .comments();
-                } catch (RestApiException e) {
-                    log.warn(e);
-                    return Collections.emptyMap();
-                }
+        return Suppliers.memoize(() -> {
+            try {
+                return gerritApi.changes()
+                    .id(selectedChange.id)
+                    .revision(getSelectedRevisionId())
+                    .comments();
+            } catch (RestApiException e) {
+                log.warn(e);
+                return Collections.emptyMap();
             }
         });
     }
 
     private Supplier<Map<String, List<CommentInfo>>> setupDraftsSupplier() {
-        return Suppliers.memoize(new Supplier<Map<String, List<CommentInfo>>>() {
-            @Override
-            public Map<String, List<CommentInfo>> get() {
-                if (!gerritSettings.isLoginAndPasswordAvailable()) {
-                    return Collections.emptyMap();
-                }
-                try {
-                    return gerritApi.changes()
-                            .id(selectedChange.id)
-                            .revision(getSelectedRevisionId())
-                            .drafts();
-                } catch (RestApiException e) {
-                    log.warn(e);
-                    return Collections.emptyMap();
-                }
+        return Suppliers.memoize(() -> {
+            if (!gerritSettings.isLoginAndPasswordAvailable()) {
+                return Collections.emptyMap();
+            }
+            try {
+                return gerritApi.changes()
+                        .id(selectedChange.id)
+                        .revision(getSelectedRevisionId())
+                        .drafts();
+            } catch (RestApiException e) {
+                log.warn(e);
+                return Collections.emptyMap();
             }
         });
     }
 
     private Supplier<Set<String>> setupReviewedSupplier() {
-        return Suppliers.memoize(new Supplier<Set<String>>() {
-            @Override
-            public Set<String> get() {
-                if (!gerritSettings.isLoginAndPasswordAvailable()) {
-                    return Collections.emptySet();
-                }
-                try {
-                    return gerritApi.changes()
-                            .id(selectedChange.id)
-                            .revision(getSelectedRevisionId())
-                            .reviewed();
-                } catch (RestApiException e) {
-                    log.warn(e);
-                    return Collections.emptySet();
-                }
+        return Suppliers.memoize(() -> {
+            if (!gerritSettings.isLoginAndPasswordAvailable()) {
+                return Collections.emptySet();
+            }
+            try {
+                return gerritApi.changes()
+                        .id(selectedChange.id)
+                        .revision(getSelectedRevisionId())
+                        .reviewed();
+            } catch (RestApiException e) {
+                log.warn(e);
+                return Collections.emptySet();
             }
         });
     }

@@ -102,15 +102,13 @@ public class GerritPushExtensionPanel extends JPanel {
         initialized = true;
 
         // force a deferred update (changes are monitored only after full construction of dialog)
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                if (gerritPushTargetPanels.size() == 1) {
-                    String branchName = gerritPushTargetPanels.values().iterator().next();
-                    Optional<String> gitReviewBranchName = getGitReviewBranchName();
-                    branchTextField.setText(gitReviewBranchName.or(branchName));
-                }
-                initDestinationBranch();
+        SwingUtilities.invokeLater(() -> {
+            if (gerritPushTargetPanels.size() == 1) {
+                String branchName = gerritPushTargetPanels.values().iterator().next();
+                Optional<String> gitReviewBranchName = getGitReviewBranchName();
+                branchTextField.setText(gitReviewBranchName.or(branchName));
             }
+            initDestinationBranch();
         });
     }
 

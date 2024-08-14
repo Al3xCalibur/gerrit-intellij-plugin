@@ -38,20 +38,17 @@ import java.util.Collection;
  */
 public class CommitDiffBuilder {
 
-    private static final Predicate<Change> COMMIT_MSG_CHANGE_PREDICATE = new Predicate<Change>() {
-        @Override
-        public boolean apply(Change change) {
-            String commitMsgFile = "/COMMIT_MSG";
-            ContentRevision afterRevision = change.getAfterRevision();
-            if (afterRevision != null) {
-                return commitMsgFile.equals(PathUtils.ensureSlashSeparators(afterRevision.getFile().getPath()));
-            }
-            ContentRevision beforeRevision = change.getBeforeRevision();
-            if (beforeRevision != null) {
-                return commitMsgFile.equals(PathUtils.ensureSlashSeparators(beforeRevision.getFile().getPath()));
-            }
-            throw new IllegalStateException("Change should have at least one ContentRevision set.");
+    private static final Predicate<Change> COMMIT_MSG_CHANGE_PREDICATE = change -> {
+        String commitMsgFile = "/COMMIT_MSG";
+        ContentRevision afterRevision = change.getAfterRevision();
+        if (afterRevision != null) {
+            return commitMsgFile.equals(PathUtils.ensureSlashSeparators(afterRevision.getFile().getPath()));
         }
+        ContentRevision beforeRevision = change.getBeforeRevision();
+        if (beforeRevision != null) {
+            return commitMsgFile.equals(PathUtils.ensureSlashSeparators(beforeRevision.getFile().getPath()));
+        }
+        throw new IllegalStateException("Change should have at least one ContentRevision set.");
     };
 
     private final Project project;

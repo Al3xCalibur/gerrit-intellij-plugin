@@ -63,14 +63,11 @@ public class SubmitAction extends AbstractLoggedInChangeAction {
             return;
         }
         SubmitInput submitInput = new SubmitInput();
-        gerritUtil.postSubmit(selectedChange.get().id, submitInput, project, new Consumer<Void>() {
-            @Override
-            public void consume(Void aVoid) {
-                NotificationBuilder notification = new NotificationBuilder(
-                        project, "Change submitted", getSuccessMessage(selectedChange.get())
-                ).hideBalloon();
-                notificationService.notifyInformation(notification);
-            }
+        gerritUtil.postSubmit(selectedChange.get().id, submitInput, project, aVoid -> {
+            NotificationBuilder notification = new NotificationBuilder(
+                    project, "Change submitted", getSuccessMessage(selectedChange.get())
+            ).hideBalloon();
+            notificationService.notifyInformation(notification);
         });
     }
 

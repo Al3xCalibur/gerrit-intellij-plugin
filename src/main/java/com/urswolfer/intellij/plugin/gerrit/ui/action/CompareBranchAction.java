@@ -60,12 +60,9 @@ public class CompareBranchAction extends AbstractChangeAction {
             return;
         }
         final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
-        Callable<Void> successCallable = new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                diffChange(project, selectedChange.get());
-                return null;
-            }
+        Callable<Void> successCallable = () -> {
+            diffChange(project, selectedChange.get());
+            return null;
         };
         fetchAction.fetchChange(selectedChange.get(), project, successCallable);
     }
@@ -92,12 +89,8 @@ public class CompareBranchAction extends AbstractChangeAction {
 
         CommitCompareInfo compareInfo = gerritGitUtil.loadCommitsToCompare(
             Collections.singletonList(gitRepository), branchName, project);
-        ApplicationManager.getApplication().invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new CompareBranchesDialog(new GitCompareBranchesHelper(project), branchName, currentBranchName, compareInfo, gitRepository, false).show();
-            }
-        });
+        ApplicationManager.getApplication().invokeLater(() ->
+            new CompareBranchesDialog(new GitCompareBranchesHelper(project), branchName, currentBranchName, compareInfo, gitRepository, false).show());
     }
 
     public static class Proxy extends CompareBranchAction {

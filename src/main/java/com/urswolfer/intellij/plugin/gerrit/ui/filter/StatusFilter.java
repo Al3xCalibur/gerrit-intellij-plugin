@@ -43,17 +43,14 @@ public class StatusFilter extends AbstractChangesFilter {
             new Status("Drafts", "draft")
     );
 
-    private static final Supplier<String> QUERY_FOR_ALL = new Supplier<String>() {
-        @Override
-        public String get() {
-            Set<String> queryForAll = Sets.newHashSet();
-            for (Status status : STATUSES) {
-                if (status.forQuery.isPresent()) {
-                    queryForAll.add(String.format("is:%s", status.forQuery.get()));
-                }
+    private static final Supplier<String> QUERY_FOR_ALL = () -> {
+        Set<String> queryForAll = Sets.newHashSet();
+        for (Status status : STATUSES) {
+            if (status.forQuery.isPresent()) {
+                queryForAll.add(String.format("is:%s", status.forQuery.get()));
             }
-            return String.format("(%s)", Joiner.on("+OR+").join(queryForAll));
         }
+        return String.format("(%s)", Joiner.on("+OR+").join(queryForAll));
     };
 
     private Optional<Status> value = Optional.absent();

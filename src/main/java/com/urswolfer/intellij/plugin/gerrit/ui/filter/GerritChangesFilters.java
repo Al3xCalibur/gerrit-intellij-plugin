@@ -48,12 +48,7 @@ public class GerritChangesFilters extends Observable implements Observer {
 
     public String getQuery() {
         return Joiner.on("+").skipNulls()
-                .join(Iterables.transform(filters, new Function<AbstractChangesFilter, String>() {
-            @Override
-            public String apply(AbstractChangesFilter abstractChangesFilter) {
-                return abstractChangesFilter.getSearchQueryPart();
-            }
-        }));
+                .join(Iterables.transform(filters, ChangesFilter::getSearchQueryPart));
     }
 
     public Iterable<ChangesFilter> getFilters() {

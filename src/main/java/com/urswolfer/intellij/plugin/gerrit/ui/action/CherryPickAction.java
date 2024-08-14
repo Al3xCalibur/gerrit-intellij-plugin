@@ -55,23 +55,13 @@ public class CherryPickAction extends AbstractChangeAction {
         }
         final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
 
-        getChangeDetail(selectedChange.get(), project, new Consumer<ChangeInfo>() {
-            @Override
-            public void consume(final ChangeInfo changeInfo) {
-                Callable<Void> fetchCallback = new Callable<Void>() {
-                    @Override
-                    public Void call() throws Exception {
-                        ApplicationManager.getApplication().invokeLater(new Runnable() {
-                            @Override
-                            public void run() {
-                                gerritGitUtil.cherryPickChange(project, changeInfo, selectedRevisions.get(changeInfo));
-                            }
-                        });
-                        return null;
-                    }
-                };
-                fetchAction.fetchChange(selectedChange.get(), project, fetchCallback);
-            }
+        getChangeDetail(selectedChange.get(), project, changeInfo -> {
+            Callable<Void> fetchCallback = () -> {
+                ApplicationManager.getApplication().invokeLater(() ->
+                    gerritGitUtil.cherryPickChange(project, changeInfo, selectedRevisions.get(changeInfo)));
+                return null;
+            };
+            fetchAction.fetchChange(selectedChange.get(), project, fetchCallback);
         });
     }
 

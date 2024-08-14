@@ -35,12 +35,9 @@ public class LoggerHttpClientBuilderExtension extends HttpClientBuilderExtension
 
     @Override
     public HttpClientBuilder extend(HttpClientBuilder httpClientBuilder, GerritAuthData authData) {
-        httpClientBuilder.addInterceptorFirst(new HttpRequestInterceptor() {
-            @Override
-            public void process(HttpRequest httpRequest, HttpContext httpContext) throws HttpException, IOException {
-                if (log.isDebugEnabled()) {
-                    log.debug(httpRequest.toString());
-                }
+        httpClientBuilder.addInterceptorFirst((HttpRequestInterceptor) (httpRequest, httpContext) -> {
+            if (log.isDebugEnabled()) {
+                log.debug(httpRequest.toString());
             }
         });
         return httpClientBuilder;

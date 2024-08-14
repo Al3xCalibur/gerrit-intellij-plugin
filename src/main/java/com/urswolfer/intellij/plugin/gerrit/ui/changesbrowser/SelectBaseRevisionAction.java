@@ -65,15 +65,12 @@ public class SelectBaseRevisionAction extends BasePopupAction {
     public SelectBaseRevisionAction(final SelectedRevisions selectedRevisions) {
         super("Diff against");
         this.selectedRevisions = selectedRevisions;
-        selectedRevisions.addObserver(new Observer() {
-            @Override
-            public void update(Observable o, Object arg) {
-                if (arg != null && arg instanceof String && selectedValue.isPresent() ) {
-                    Optional<String> selectedRevision = selectedRevisions.get((String) arg);
-                    if (selectedRevision.isPresent() && selectedRevision.get().equals(selectedValue.get().getFirst())) {
-                        removeSelectedValue();
-                        updateLabel();
-                    }
+        selectedRevisions.addObserver((o, arg) -> {
+            if (arg instanceof String && selectedValue.isPresent()) {
+                Optional<String> selectedRevision = selectedRevisions.get((String) arg);
+                if (selectedRevision.isPresent() && selectedRevision.get().equals(selectedValue.get().getFirst())) {
+                    removeSelectedValue();
+                    updateLabel();
                 }
             }
         });

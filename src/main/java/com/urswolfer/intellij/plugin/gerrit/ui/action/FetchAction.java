@@ -45,26 +45,22 @@ public class FetchAction {
     private SelectedRevisions selectedRevisions;
 
     public void fetchChange(ChangeInfo selectedChange, final Project project, final Callable<Void> fetchCallback) {
-        gerritUtil.getChangeDetails(selectedChange._number, project, new Consumer<ChangeInfo>() {
-            @Override
-            public void consume(ChangeInfo changeDetails) {
-
-                Optional<GitRepository> gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeDetails.project);
-                if (!gitRepository.isPresent()) {
-                    NotificationBuilder notification = new NotificationBuilder(project, "Error",
-                        String.format("No repository found for Gerrit project: '%s'.", changeDetails.project));
-                    notificationService.notifyError(notification);
-                    return;
-                }
-
-                String commitHash = selectedRevisions.get(changeDetails);
-
-                FetchInfo firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails);
-                if (firstFetchInfo == null) {
-                    return;
-                }
-                gerritGitUtil.fetchChange(project, gitRepository.get(), firstFetchInfo, commitHash, fetchCallback);
+        gerritUtil.getChangeDetails(selectedChange._number, project, changeDetails -> {
+            Optional<GitRepository> gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeDetails.project);
+            if (!gitRepository.isPresent()) {
+                NotificationBuilder notification = new NotificationBuilder(project, "Error",
+                    String.format("No repository found for Gerrit project: '%s'.", changeDetails.project));
+                notificationService.notifyError(notification);
+                return;
             }
+
+            String commitHash = selectedRevisions.get(changeDetails);
+
+            FetchInfo firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails);
+            if (firstFetchInfo == null) {
+                return;
+            }
+            gerritGitUtil.fetchChange(project, gitRepository.get(), firstFetchInfo, commitHash, fetchCallback);
         });
     }
 

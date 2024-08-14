@@ -97,13 +97,10 @@ public class ReviewActionGroup extends ActionGroup implements UpdateInBackground
                 List<AnAction> valueActions = Lists.newArrayList();
                 Collection<String> values = entry.getValue();
                 List<Integer> intValues = Lists.newArrayList(Collections2.transform(
-                    values, new Function<String, Integer>() {
-                        @Override
-                        public Integer apply(String v) {
-                            v = v.trim();
-                            if (v.charAt(0) == '+') v = v.substring(1); // required for Java 6 support
-                            return Integer.valueOf(v);
-                        }
+                    values, v -> {
+                        v = v.trim();
+                        if (v.charAt(0) == '+') v = v.substring(1); // required for Java 6 support
+                        return Integer.valueOf(v);
                     }));
                 Collections.sort(intValues);
                 Collections.reverse(intValues);
