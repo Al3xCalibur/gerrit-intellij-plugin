@@ -18,6 +18,8 @@ package com.urswolfer.intellij.plugin.gerrit.util;
 
 import com.google.gerrit.extensions.client.Comment;
 
+import java.util.Objects;
+
 /**
  * CommentInfo and ReviewInput.CommentInput do not provide equals and hashCode as required for map handling.
  *
@@ -54,13 +56,13 @@ public class CommentHelper {
 
         Comment that = comment2;
 
-        if (comment1.line != that.line) return false;
-        if (comment1.id != null ? !comment1.id.equals(that.id) : that.id != null) return false;
-        if (comment1.inReplyTo != null ? !comment1.inReplyTo.equals(that.inReplyTo) : that.inReplyTo != null) return false;
-        if (comment1.message != null ? !comment1.message.equals(that.message) : that.message != null) return false;
-        if (comment1.path != null ? !comment1.path.equals(that.path) : that.path != null) return false;
-        if (comment1.side != null ? !comment1.side.equals(that.side) : that.side != null) return false;
-        if (comment1.updated != null ? !comment1.updated.equals(that.updated) : that.updated != null) return false;
+        if (!Objects.equals(comment1.line, that.line)) return false;
+        if (!Objects.equals(comment1.id, that.id)) return false;
+        if (!Objects.equals(comment1.inReplyTo, that.inReplyTo)) return false;
+        if (!Objects.equals(comment1.message, that.message)) return false;
+        if (!Objects.equals(comment1.path, that.path)) return false;
+        if (!Objects.equals(comment1.side, that.side)) return false;
+        if (!Objects.equals(comment1.updated, that.updated)) return false;
 
         return true;
     }
