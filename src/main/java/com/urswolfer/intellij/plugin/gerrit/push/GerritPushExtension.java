@@ -66,12 +66,13 @@ public class GerritPushExtension implements NamedComponent {
     private void modifyGitBranchPanel(ClassPool classPool, ClassLoader classLoader) {
         try {
             boolean pushToGerrit = gerritSettings.getPushToGerrit();
+            boolean forceDefaultBranch = gerritSettings.getForceDefaultBranch();
 
             CtClass gitPushSupportClass = classPool.get("git4idea.push.GitPushSupport");
             CtClass gerritPushOptionsPanelClass = classPool.get("com.urswolfer.intellij.plugin.gerrit.push.GerritPushOptionsPanel");
 
             gitPushSupportClass.addField(new CtField(gerritPushOptionsPanelClass, "gerritPushOptionsPanel", gitPushSupportClass),
-                    "new com.urswolfer.intellij.plugin.gerrit.push.GerritPushOptionsPanel(" + pushToGerrit + ");");
+                    "new com.urswolfer.intellij.plugin.gerrit.push.GerritPushOptionsPanel(" + pushToGerrit + "," + forceDefaultBranch + ");");
 
             CtMethod createOptionsPanelMethod = gitPushSupportClass.getDeclaredMethod("createOptionsPanel");
             createOptionsPanelMethod.setBody(

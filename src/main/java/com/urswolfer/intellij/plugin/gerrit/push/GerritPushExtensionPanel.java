@@ -53,6 +53,7 @@ public class GerritPushExtensionPanel extends JPanel {
     private static final String GITREVIEW_FILENAME = ".gitreview";
 
     private final boolean pushToGerritByDefault;
+    private final boolean forceDefaultBranch;
 
     private JPanel indentedSettingPanel;
 
@@ -70,11 +71,12 @@ public class GerritPushExtensionPanel extends JPanel {
     private JTextField reviewersTextField;
     private JTextField ccTextField;
     private JTextField patchsetDescriptionTextField;
-    private Map<GerritPushTargetPanel, String> gerritPushTargetPanels = Maps.newHashMap();
+    private final Map<GerritPushTargetPanel, String> gerritPushTargetPanels = Maps.newHashMap();
     private boolean initialized = false;
 
-    public GerritPushExtensionPanel(boolean pushToGerritByDefault) {
+    public GerritPushExtensionPanel(boolean pushToGerritByDefault, boolean forceDefaultBranch) {
         this.pushToGerritByDefault = pushToGerritByDefault;
+        this.forceDefaultBranch = forceDefaultBranch;
         createLayout();
 
         pushToGerritCheckBox.setSelected(pushToGerritByDefault);
@@ -104,7 +106,12 @@ public class GerritPushExtensionPanel extends JPanel {
         // force a deferred update (changes are monitored only after full construction of dialog)
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                if (gerritPushTargetPanels.size() == 1) {
+                if (forceDefaultBranch) {
+                    Optional<String> gitReviewBranchName = getGitReviewBranchName();
+                    if(gitReviewBranchName.isPresent()) {
+                        branchTextField.setText(gitReviewBranchName.get());
+                    }
+                } else if (gerritPushTargetPanels.size() == 1) {
                     String branchName = gerritPushTargetPanels.values().iterator().next();
                     Optional<String> gitReviewBranchName = getGitReviewBranchName();
                     branchTextField.setText(gitReviewBranchName.or(branchName));
@@ -118,8 +125,7 @@ public class GerritPushExtensionPanel extends JPanel {
         Optional<String> branchName = Optional.absent();
 
         DataContext dataContext = DataManager.getInstance().getDataContext(this);
-        Optional<Project> openedProject = dataContext != null ?
-            Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext)) : Optional.<Project>absent();
+        Optional<Project> openedProject = Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext));
 
         if (openedProject.isPresent()) {
             String gitReviewFilePath = Joiner.on(File.separator).join(
@@ -127,24 +133,15 @@ public class GerritPushExtensionPanel extends JPanel {
 
             File gitReviewFile = new File(gitReviewFilePath);
             if (gitReviewFile.exists() && gitReviewFile.isFile()) {
-                FileInputStream fileInputStream = null;
-                try {
-                    fileInputStream = new FileInputStream(gitReviewFilePath);
+                try (FileInputStream fileInputStream = new FileInputStream(gitReviewFilePath)) {
 
                     Properties properties = new Properties();
                     properties.load(fileInputStream);
                     branchName = Optional.fromNullable(Strings.emptyToNull(properties.getProperty("defaultbranch")));
                 } catch (IOException e) {
                     //no need to handle as branch name is already absent and ready to be returned
-                } finally {
-                    if (fileInputStream != null) {
-                        try {
-                            fileInputStream.close();
-                        } catch (IOException e) {
-                            //no need to handle as branch name is already absent and ready to be returned
-                        }
-                    }
                 }
+                //no need to handle as branch name is already absent and ready to be returned
             }
         }
 
