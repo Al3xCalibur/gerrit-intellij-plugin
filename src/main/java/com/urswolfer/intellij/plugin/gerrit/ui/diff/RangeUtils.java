@@ -50,7 +50,7 @@ public final class RangeUtils {
 
                 if (end > currentCharCount) {
                     endLine++;
-                } else if (endOffset < 0) {
+                } else {
                     endOffset = end - (currentCharCount - lineString.length() - 1);
                     break;
                 }
