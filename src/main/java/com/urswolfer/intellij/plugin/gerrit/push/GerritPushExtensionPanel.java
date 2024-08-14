@@ -53,6 +53,7 @@ public class GerritPushExtensionPanel extends JPanel {
     private static final String GITREVIEW_FILENAME = ".gitreview";
 
     private final boolean pushToGerritByDefault;
+    private final boolean forceDefaultBranch;
 
     private JPanel indentedSettingPanel;
 
@@ -73,8 +74,9 @@ public class GerritPushExtensionPanel extends JPanel {
     private final Map<GerritPushTargetPanel, String> gerritPushTargetPanels = Maps.newHashMap();
     private boolean initialized = false;
 
-    public GerritPushExtensionPanel(boolean pushToGerritByDefault) {
+    public GerritPushExtensionPanel(boolean pushToGerritByDefault, boolean forceDefaultBranch) {
         this.pushToGerritByDefault = pushToGerritByDefault;
+        this.forceDefaultBranch = forceDefaultBranch;
         createLayout();
 
         pushToGerritCheckBox.setSelected(pushToGerritByDefault);
@@ -103,7 +105,12 @@ public class GerritPushExtensionPanel extends JPanel {
 
         // force a deferred update (changes are monitored only after full construction of dialog)
         SwingUtilities.invokeLater(() -> {
-            if (gerritPushTargetPanels.size() == 1) {
+            if (forceDefaultBranch) {
+                Optional<String> gitReviewBranchName = getGitReviewBranchName();
+                if(gitReviewBranchName.isPresent()) {
+                    branchTextField.setText(gitReviewBranchName.get());
+                }
+            } else if (gerritPushTargetPanels.size() == 1) {
                 String branchName = gerritPushTargetPanels.values().iterator().next();
                 Optional<String> gitReviewBranchName = getGitReviewBranchName();
                 branchTextField.setText(gitReviewBranchName.or(branchName));
