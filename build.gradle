@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 
+buildscript {
+    ext.kotlin_version = '2.0.10'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
 plugins {
     id 'org.jetbrains.intellij' version '1.17.4'
 }
 
 apply plugin: 'java'
-
-targetCompatibility = javaVersion
-sourceCompatibility = javaVersion
+apply plugin: 'kotlin'
 
 tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
 
@@ -56,6 +63,7 @@ dependencies {
 
     testImplementation 'org.testng:testng:7.10.2'
     testImplementation 'org.easymock:easymock:5.4.0'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 
 intellij {
@@ -71,6 +79,10 @@ intellij {
             System.getenv('IJ_REPO_TOKEN')
         }
     }
+}
+
+kotlin {
+    jvmToolchain(11)
 }
 
 test {
