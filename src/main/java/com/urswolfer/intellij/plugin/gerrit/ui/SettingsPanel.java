@@ -33,8 +33,6 @@ import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 
@@ -63,6 +61,7 @@ public class SettingsPanel {
     private JCheckBox showTopicColumnCheckBox;
     private JComboBox showProjectColumnComboBox;
     private JTextField cloneBaseUrlTextField;
+    private JCheckBox forceDefaultBranchCheckBox;
 
     private boolean passwordModified;
 
@@ -272,6 +271,14 @@ public class SettingsPanel {
 
     public String getCloneBaseUrl() {
         return cloneBaseUrlTextField.getText().trim();
+    }
+
+    public void setForceDefaultBranch(final boolean forceDefaultBranch) {
+        forceDefaultBranchCheckBox.setSelected(forceDefaultBranch);
+    }
+
+    public boolean getForceDefaultBranch() {
+        return forceDefaultBranchCheckBox.isSelected();
     }
 
 }
