@@ -84,8 +84,7 @@ public class PluginErrorReportSubmitter extends ErrorReportSubmitter {
 
     private void postError(String json) {
         try {
-            CloseableHttpClient httpClient = HttpClients.createDefault();
-            try {
+            try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
                 HttpPost httpPost = new HttpPost(ERROR_REPORT_URL);
                 httpPost.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
                 CloseableHttpResponse response = httpClient.execute(httpPost);
@@ -93,8 +92,6 @@ public class PluginErrorReportSubmitter extends ErrorReportSubmitter {
                     String reasonPhrase = response.getStatusLine().getReasonPhrase();
                     Messages.showErrorDialog(reasonPhrase, "Gerrit Plugin Message");
                 }
-            } finally {
-                httpClient.close();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

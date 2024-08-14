@@ -124,24 +124,15 @@ public class GerritPushExtensionPanel extends JPanel {
 
             File gitReviewFile = new File(gitReviewFilePath);
             if (gitReviewFile.exists() && gitReviewFile.isFile()) {
-                FileInputStream fileInputStream = null;
-                try {
-                    fileInputStream = new FileInputStream(gitReviewFilePath);
+                try (FileInputStream fileInputStream = new FileInputStream(gitReviewFilePath)) {
 
                     Properties properties = new Properties();
                     properties.load(fileInputStream);
                     branchName = Optional.fromNullable(Strings.emptyToNull(properties.getProperty("defaultbranch")));
                 } catch (IOException e) {
                     //no need to handle as branch name is already absent and ready to be returned
-                } finally {
-                    if (fileInputStream != null) {
-                        try {
-                            fileInputStream.close();
-                        } catch (IOException e) {
-                            //no need to handle as branch name is already absent and ready to be returned
-                        }
-                    }
                 }
+                //no need to handle as branch name is already absent and ready to be returned
             }
         }
 
