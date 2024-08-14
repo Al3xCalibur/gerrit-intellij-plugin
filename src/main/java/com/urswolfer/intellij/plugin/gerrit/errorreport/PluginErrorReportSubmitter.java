@@ -44,7 +44,7 @@ public class PluginErrorReportSubmitter extends ErrorReportSubmitter {
     private static final String ERROR_REPORT_URL = "https://urswolfer.com/gerrit-intellij-plugin/service/error-report/";
 
     @Override
-    public String getReportActionText() {
+    public @NotNull String getReportActionText() {
         return "Report to Plugin Developer (Please include your email address)";
     }
 

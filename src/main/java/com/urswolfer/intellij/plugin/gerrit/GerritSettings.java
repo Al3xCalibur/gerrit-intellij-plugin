@@ -150,7 +150,7 @@ public class GerritSettings implements PersistentStateComponent<Element>, Gerrit
     @NotNull
     public String getPassword() {
         if (!ApplicationManager.getApplication().isDispatchThread()) {
-            if (preloadedPassword == null) {
+            if (!preloadedPassword.isPresent()) {
                 throw new IllegalStateException("Need to call #preloadPassword when password is required in background thread");
             }
         } else {

@@ -116,8 +116,7 @@ public class GerritPushExtensionPanel extends JPanel {
         Optional<String> branchName = Optional.absent();
 
         DataContext dataContext = DataManager.getInstance().getDataContext(this);
-        Optional<Project> openedProject = dataContext != null ?
-            Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext)) : Optional.<Project>absent();
+        Optional<Project> openedProject = Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext));
 
         if (openedProject.isPresent()) {
             String gitReviewFilePath = Joiner.on(File.separator).join(

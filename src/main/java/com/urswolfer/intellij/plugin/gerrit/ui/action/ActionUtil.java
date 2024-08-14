@@ -42,6 +42,6 @@ public class ActionUtil {
             return Optional.absent();
         }
         final ChangeInfo selectedChange = (ChangeInfo) selectedObject;
-        return Optional.fromNullable(selectedChange);
+        return Optional.of(selectedChange);
     }
 }

@@ -53,7 +53,7 @@ public class StatusFilter extends AbstractChangesFilter {
         return String.format("(%s)", Joiner.on("+OR+").join(queryForAll));
     };
 
-    private Optional<Status> value = Optional.absent();
+    private Optional<Status> value;
 
     public StatusFilter() {
         value = Optional.of(STATUSES.get(1));
