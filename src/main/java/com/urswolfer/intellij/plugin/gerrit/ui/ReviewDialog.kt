@@ -22,7 +22,7 @@ import javax.swing.JComponent
 /**
  * @author Urs Wolfer
  */
-class ReviewDialog(project: Project?) : DialogWrapper(project, true) {
+class ReviewDialog(project: Project) : DialogWrapper(project, true) {
     val reviewPanel: ReviewPanel = ReviewPanel(project)
 
     init {

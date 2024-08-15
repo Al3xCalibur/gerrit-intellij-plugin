@@ -15,7 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.errorreport
 
-import com.google.common.base.Strings
 import com.google.gson.Gson
 import com.intellij.openapi.application.ex.ApplicationInfoEx
 import com.intellij.openapi.diagnostic.ErrorReportSubmitter
@@ -46,7 +45,7 @@ class PluginErrorReportSubmitter : ErrorReportSubmitter() {
         consumer: Consumer<in SubmittedReportInfo?>
     ): Boolean {
         var additionalInfo = additionalInfo
-        if (Strings.isNullOrEmpty(additionalInfo) || !additionalInfo!!.contains("@")) {
+        if (additionalInfo.isNullOrEmpty() || !additionalInfo.contains("@")) {
             val emailAddress = Messages.showInputDialog(
                 """
                  It seems you have not included your email address.
@@ -74,21 +73,11 @@ class PluginErrorReportSubmitter : ErrorReportSubmitter() {
         errorBean.additionInfo = additionalInfo
         errorBean.pluginVersion = Version.get()
         val appInfo = ApplicationInfoEx.getInstanceEx()
-        val intellijVersion = String.format(
-            "%s %s.%s %s",
-            appInfo.versionName, appInfo.majorVersion, appInfo.minorVersion, appInfo.apiVersion
-        )
+        val intellijVersion =
+            "${appInfo.versionName} ${appInfo.majorVersion}.${appInfo.minorVersion} ${appInfo.apiVersion}"
         errorBean.intellijVersion = intellijVersion
-        errorBean.os = String.format(
-            "%s %s",
-            System.getProperty("os.name"),
-            System.getProperty("os.version")
-        )
-        errorBean.java = String.format(
-            "%s %s",
-            System.getProperty("java.vendor"),
-            System.getProperty("java.version")
-        )
+        errorBean.os = "${System.getProperty("os.name")} ${System.getProperty("os.version")}"
+        errorBean.java = "${System.getProperty("java.vendor")} ${System.getProperty("java.version")}"
         errorBean.exception = loggingEvent.throwableText
         errorBean.exceptionMessage = loggingEvent.message
         return errorBean

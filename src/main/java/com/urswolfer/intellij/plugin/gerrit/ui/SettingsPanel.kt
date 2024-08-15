@@ -74,7 +74,7 @@ class SettingsPanel {
     init {
         hostTextField.emptyText.setText("https://review.example.org")
 
-        gerritLoginInfoTextField.text = LoginPanel.Companion.LOGIN_CREDENTIALS_INFO
+        gerritLoginInfoTextField.text = LoginPanel.LOGIN_CREDENTIALS_INFO
         gerritLoginInfoTextField.background = pane.background
         testButton.addActionListener { e: ActionEvent? ->
             val password = if (isPasswordModified) password else gerritSettings.password

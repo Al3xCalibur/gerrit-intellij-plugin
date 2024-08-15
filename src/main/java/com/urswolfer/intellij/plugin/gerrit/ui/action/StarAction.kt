@@ -13,7 +13,7 @@ open class StarAction : AbstractLoggedInChangeAction("Star", "Switch star status
     override fun actionPerformed(anActionEvent: AnActionEvent) {
         val changeInfo = getSelectedChange(anActionEvent) ?: return
 
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         gerritUtil.changeStarredStatus(changeInfo.id, !(changeInfo.starred != null && changeInfo.starred), project)
     }
 

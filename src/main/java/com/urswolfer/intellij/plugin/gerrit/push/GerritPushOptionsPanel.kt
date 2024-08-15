@@ -32,7 +32,7 @@ import javax.swing.JPanel
  */
 class GerritPushOptionsPanel(pushToGerrit: Boolean, forceDefaultBranch: Boolean) : VcsPushOptionsPanel() {
     val gerritPushExtensionPanel: GerritPushExtensionPanel = GerritPushExtensionPanel(pushToGerrit, forceDefaultBranch)
-    private var gitPushOptionsPanel: GitPushOptionsPanel? = null
+    private lateinit var gitPushOptionsPanel: GitPushOptionsPanel
 
     // javassist call
     fun initPanel(defaultMode: GitPushTagMode?, followTagsSupported: Boolean, showSkipHookOption: Boolean) {
@@ -52,6 +52,6 @@ class GerritPushOptionsPanel(pushToGerrit: Boolean, forceDefaultBranch: Boolean)
     }
 
     override fun getValue(): VcsPushOptionValue? {
-        return gitPushOptionsPanel!!.value
+        return gitPushOptionsPanel.value
     }
 }

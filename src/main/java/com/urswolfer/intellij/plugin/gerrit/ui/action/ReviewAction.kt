@@ -15,10 +15,7 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.common.base.Joiner
 import com.google.common.base.Strings
-import com.google.common.collect.Lists
-import com.google.common.collect.Maps
 import com.google.gerrit.extensions.api.changes.NotifyHandling
 import com.google.gerrit.extensions.api.changes.ReviewInput
 import com.google.gerrit.extensions.api.changes.ReviewInput.CommentInput
@@ -59,10 +56,9 @@ class ReviewAction(
     }
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
-
         val changeDetails = getSelectedChange(anActionEvent) ?: return
 
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         gerritUtil.getComments(
             changeDetails._number, selectedRevisions[changeDetails], project, false, true
         ) { draftComments: Map<String, List<CommentInfo>> ->
@@ -114,18 +110,12 @@ class ReviewAction(
     }
 
     private fun addComment(reviewInput: ReviewInput, path: String, comment: CommentInfo) {
-        val commentInputs: MutableList<CommentInput?>
         var comments = reviewInput.comments
         if (comments == null) {
-            comments = Maps.newHashMap()
+            comments = mutableMapOf()
             reviewInput.comments = comments
         }
-        if (comments.containsKey(path)) {
-            commentInputs = comments[path]!!
-        } else {
-            commentInputs = Lists.newArrayList()
-            comments[path] = commentInputs
-        }
+        val commentInputs = comments.getOrPut(path){ mutableListOf() }
 
         val commentInput = CommentInput()
         commentInput.id = comment.id
@@ -142,11 +132,11 @@ class ReviewAction(
 
     private fun buildSuccessMessage(changeInfo: ChangeInfo, reviewInput: ReviewInput): String {
         val stringBuilder = StringBuilder(
-            String.format("Review for change '%s' posted", changeInfo.subject)
+            "Review for change '${changeInfo.subject}' posted"
         )
         if (reviewInput.labels.isNotEmpty()) {
             stringBuilder.append(": ")
-            stringBuilder.append(Joiner.on(", ").withKeyValueSeparator(": ").join(reviewInput.labels))
+            stringBuilder.append(reviewInput.labels.entries.joinToString(", ") { "${it.key}: ${it.value}" })
         }
         return stringBuilder.toString()
     }

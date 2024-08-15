@@ -29,7 +29,7 @@ import java.io.File
 class PathUtils @Inject constructor(
     private val gerritGitUtil: GerritGitUtil
 ) {
-    fun getRelativePath(project: Project?, absoluteFilePath: String, gerritProjectName: String): String? {
+    fun getRelativePath(project: Project, absoluteFilePath: String, gerritProjectName: String): String? {
         val repository = gerritGitUtil.getRepositoryForGerritProject(project, gerritProjectName) ?: return null
         val root = repository.root
         return FileUtil.getRelativePath(File(root.path), File(absoluteFilePath))
@@ -38,7 +38,7 @@ class PathUtils @Inject constructor(
     /**
      * @return a relative path for all files under the project root, or the absolute path for other files
      */
-    fun getRelativeOrAbsolutePath(project: Project?, absoluteFilePath: String, gerritProjectName: String): String? {
+    fun getRelativeOrAbsolutePath(project: Project, absoluteFilePath: String, gerritProjectName: String): String {
         val relativePath = getRelativePath(project, absoluteFilePath, gerritProjectName)
         if (relativePath == null || relativePath.contains(File.separator + "..")) {
             return absoluteFilePath
@@ -50,8 +50,8 @@ class PathUtils @Inject constructor(
         /**
          * Gerrit handles paths always with a forward slash (/). Windows uses backslash (\), so we need to convert them.
          */
-        fun ensureSlashSeparators(path: String?): String {
-            return path!!.replace('\\', '/')
+        fun ensureSlashSeparators(path: String): String {
+            return path.replace('\\', '/')
         }
     }
 }

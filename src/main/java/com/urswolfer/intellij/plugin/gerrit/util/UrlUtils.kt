@@ -24,16 +24,16 @@ import java.nio.charset.StandardCharsets
  */
 object UrlUtils {
     @JvmStatic
-    fun urlHasSameHost(url: String?, hostUrl: String): Boolean {
+    fun urlHasSameHost(url: String, hostUrl: String): Boolean {
         val host = URI.create(hostUrl).host
         val repositoryHost = createUriFromGitConfigString(url).host
         return repositoryHost != null && repositoryHost == host
     }
 
     @JvmStatic
-    fun createUriFromGitConfigString(gitConfigUrl: String?): URI {
+    fun createUriFromGitConfigString(gitConfigUrl: String): URI {
         var gitConfigUrl = gitConfigUrl
-        if (!gitConfigUrl!!.contains("://")) { // some urls do not contain a protocol; just add something so it will not fail with parsing
+        if (!gitConfigUrl.contains("://")) { // some urls do not contain a protocol; just add something so it will not fail with parsing
             gitConfigUrl = "git://$gitConfigUrl"
         }
         gitConfigUrl = gitConfigUrl.replace(" ", "%20")

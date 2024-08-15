@@ -16,11 +16,8 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.extension
 
-import com.google.common.base.Function
 import com.google.common.base.Strings
-import com.google.common.collect.ImmutableSortedSet
 import com.google.common.collect.Iterables
-import com.google.common.collect.Ordering
 import com.google.common.io.ByteStreams
 import com.google.gerrit.extensions.client.ListChangesOption
 import com.google.gerrit.extensions.common.ProjectInfo
@@ -38,7 +35,8 @@ import com.urswolfer.gerrit.client.rest.GerritRestApi
 import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
 import git4idea.checkout.GitCheckoutProvider
 import git4idea.checkout.GitCloneDialog
 import git4idea.commands.Git
@@ -65,7 +63,7 @@ class GerritCheckoutProvider @Inject constructor(
             return
         }
         FileDocumentManager.getInstance().saveAllDocuments()
-        var availableProjects: List<ProjectInfo?>? = null
+        var availableProjects: List<ProjectInfo>? = null
         try {
             availableProjects = gerritUtil.getAvailableProjects(project)
         } catch (e: Exception) {
@@ -80,14 +78,13 @@ class GerritCheckoutProvider @Inject constructor(
         if (availableProjects == null) {
             return
         }
-        val orderedProjects =
-            ImmutableSortedSet.orderedBy(ID_REVERSE_ORDERING).addAll(availableProjects).build()
+        val orderedProjects = availableProjects.sortedByDescending { it.id }
 
         val url = cloneBaseUrl
 
         val dialog = GitCloneDialog(project)
         for (projectInfo in orderedProjects) {
-            dialog.prependToHistory(url + '/' + Url.decode(projectInfo!!.id))
+            dialog.prependToHistory(url + '/' + Url.decode(projectInfo.id))
         }
         dialog.show()
         if (!dialog.isOK) {
@@ -118,7 +115,7 @@ class GerritCheckoutProvider @Inject constructor(
         return "Gerrit"
     }
 
-    private val cloneBaseUrl: String?
+    private val cloneBaseUrl: String
         /**
          * If set, return the clone base url from the preferences. Otherwise, try to determine the Git clone url by
          * fetching a random change and processing its fetch url. If it fails, fall back to Gerrit host url config.
@@ -209,12 +206,5 @@ class GerritCheckoutProvider @Inject constructor(
         override fun getVcsName(): @NonNls String? {
             return delegate.vcsName
         }
-    }
-
-    companion object {
-        private val GET_ID_FUNCTION = { from: ProjectInfo? -> from!!.id }
-        private val ID_REVERSE_ORDERING: Ordering<ProjectInfo?> = Ordering.natural<Comparable<*>>().onResultOf(
-            GET_ID_FUNCTION
-        ).reverse()
     }
 }

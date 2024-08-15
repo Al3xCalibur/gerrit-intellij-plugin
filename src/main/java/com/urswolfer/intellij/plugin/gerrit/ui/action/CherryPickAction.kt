@@ -15,7 +15,7 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.google.inject.Inject
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
@@ -24,7 +24,6 @@ import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
 import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
 import icons.DvcsImplIcons
-import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
@@ -46,9 +45,9 @@ open class CherryPickAction : AbstractChangeAction(
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
         val selectedChange = getSelectedChange(anActionEvent) ?: return
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
 
-        getChangeDetail(selectedChange, project) { changeInfo: ChangeInfo? ->
+        getChangeDetail(selectedChange, project) { changeInfo: ChangeInfo ->
             val fetchCallback = {
                 ApplicationManager.getApplication().invokeLater {
                     gerritGitUtil.cherryPickChange(
@@ -57,7 +56,6 @@ open class CherryPickAction : AbstractChangeAction(
                         selectedRevisions[changeInfo]
                     )
                 }
-                null
             }
             fetchAction.fetchChange(selectedChange, project, fetchCallback)
         }

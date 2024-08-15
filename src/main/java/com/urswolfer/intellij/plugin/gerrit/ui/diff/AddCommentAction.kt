@@ -44,12 +44,12 @@ import javax.swing.Icon
 class AddCommentAction(
     label: String?,
     icon: Icon?,
-    private val commentsDiffTool: CommentsDiffTool?,
-    private val gerritUtil: GerritUtil?,
-    private val gerritSettings: GerritSettings?,
-    private val editor: Editor?,
-    private val commentBalloonBuilder: CommentBalloonBuilder?,
-    private val changeInfo: ChangeInfo?,
+    private val commentsDiffTool: CommentsDiffTool,
+    private val gerritUtil: GerritUtil,
+    private val gerritSettings: GerritSettings,
+    private val editor: Editor,
+    private val commentBalloonBuilder: CommentBalloonBuilder,
+    private val changeInfo: ChangeInfo,
     private val revisionId: String?,
     private val filePath: String?,
     private val commentSide: Side?,
@@ -64,15 +64,15 @@ class AddCommentAction(
     }
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = gerritSettings!!.isLoginAndPasswordAvailable
+        e.presentation.isEnabled = gerritSettings.isLoginAndPasswordAvailable
     }
 
     private fun addVersionedComment(project: Project) {
-        if (editor == null || filePath == null) return
+        if (filePath == null) return
 
         val commentForm = CommentForm(project, editor, filePath, commentSide, commentToEdit)
-        val balloon = commentBalloonBuilder!!.getNewCommentBalloon(commentForm, "Comment")
-        balloon!!.addListener(object : JBPopupListener {
+        val balloon = commentBalloonBuilder.getNewCommentBalloon(commentForm, "Comment")
+        balloon.addListener(object : JBPopupListener {
             override fun beforeShown(lightweightWindowEvent: LightweightWindowEvent) {}
 
             override fun onClosed(event: LightweightWindowEvent) {
@@ -99,13 +99,13 @@ class AddCommentAction(
             comment.range = replyToComment.range
         }
 
-        gerritUtil!!.saveDraftComment(
-            changeInfo!!._number, revisionId, comment, project
+        gerritUtil.saveDraftComment(
+            changeInfo._number, revisionId, comment, project
         ) { commentInfo: CommentInfo ->
             if (commentToEdit != null) {
-                commentsDiffTool!!.removeComment(project, editor, lineHighlighter, rangeHighlighter)
+                commentsDiffTool.removeComment(project, editor, lineHighlighter, rangeHighlighter)
             }
-            commentsDiffTool!!.addComment(editor, changeInfo, revisionId, project, commentInfo)
+            commentsDiffTool.addComment(editor, changeInfo, revisionId, project, commentInfo)
         }
     }
 }

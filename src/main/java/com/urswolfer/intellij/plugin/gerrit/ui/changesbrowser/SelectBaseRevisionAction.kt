@@ -17,10 +17,8 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser
 
-import com.google.common.base.Function
-import com.google.common.base.Optional
-import com.google.common.collect.*
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.RevisionInfo
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.UpdateInBackground
@@ -35,13 +33,13 @@ import java.util.*
 /**
  * @author Thomas Forrer
  */
-class SelectBaseRevisionAction(private val selectedRevisions: SelectedRevisions?) : BasePopupAction("Diff against") {
+class SelectBaseRevisionAction(private val selectedRevisions: SelectedRevisions) : BasePopupAction("Diff against") {
     private var selectedChange: ChangeInfo? = null
     private var selectedValue: Pair<String, RevisionInfo>? = null
     private val listeners: MutableList<Listener> = mutableListOf()
 
     init {
-        selectedRevisions!!.addObserver { o: Observable?, arg: Any? ->
+        selectedRevisions.addObserver { o: Observable?, arg: Any? ->
             val value = selectedValue
             if (arg is String && value != null) {
                 val selectedRevision = selectedRevisions[arg]
@@ -92,7 +90,7 @@ class SelectBaseRevisionAction(private val selectedRevisions: SelectedRevisions?
             }
 
             private val isSameRevisionAsSelected: Boolean
-                get() = commitHash == selectedRevisions!![selectedChange]
+                get() = selectedChange != null && commitHash == selectedRevisions[selectedChange!!]
         }
     }
 

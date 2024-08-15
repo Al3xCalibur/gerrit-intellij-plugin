@@ -28,7 +28,6 @@ import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.OnePixelSplitter
-import com.intellij.util.Consumer
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
 import com.urswolfer.intellij.plugin.gerrit.rest.LoadChangesProxy
@@ -101,14 +100,14 @@ class GerritToolWindow @Inject constructor(
         ) { changeDetails: ChangeInfo -> detailsPanel.setData(changeDetails) }
     }
 
-    fun reloadChanges(project: Project?, requestSettingsIfNonExistent: Boolean) {
-        getChanges(project, requestSettingsIfNonExistent, changeListPanel)
+    fun reloadChanges(project: Project, requestSettingsIfNonExistent: Boolean) {
+        getChanges(project, requestSettingsIfNonExistent, changeListPanel::consume)
     }
 
     private fun getChanges(
-        project: Project?,
+        project: Project,
         requestSettingsIfNonExistent: Boolean,
-        consumer: Consumer<LoadChangesProxy>
+        consumer: (LoadChangesProxy) -> Unit
     ) {
         val apiUrl = gerritSettings.host
         if (Strings.isNullOrEmpty(apiUrl)) {
@@ -130,8 +129,7 @@ class GerritToolWindow @Inject constructor(
         val group = DefaultActionGroup(groupFromConfig) // copy required (otherwise config action group gets modified)
 
         val filterGroup = DefaultActionGroup()
-        val filters = changesFilters.filters
-        for (filter in filters) {
+        for (filter in changesFilters.filters) {
             filterGroup.add(filter.getAction(project))
         }
         filterGroup.add(Separator())

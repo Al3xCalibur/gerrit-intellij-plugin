@@ -27,12 +27,11 @@ import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.ui.EditorTextField
 import com.urswolfer.intellij.plugin.gerrit.ui.SafeHtmlTextEditor
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.PathUtils
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.ActionEvent
 import javax.swing.*
-import kotlin.String
 
 /**
  * @author Urs Wolfer
@@ -41,7 +40,7 @@ import kotlin.String
  * https://github.com/ktisha/Crucible4IDEA
  */
 class CommentForm(
-    project: Project?,
+    project: Project,
     private val editor: Editor,
     private val filePath: String,
     private val commentSide: Side?,

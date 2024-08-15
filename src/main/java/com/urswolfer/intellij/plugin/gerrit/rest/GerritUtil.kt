@@ -17,7 +17,6 @@
 package com.urswolfer.intellij.plugin.gerrit.rest
 
 import com.google.common.base.*
-import com.google.common.base.Function
 import com.google.common.collect.*
 import com.google.gerrit.extensions.api.GerritApi
 import com.google.gerrit.extensions.api.changes.*
@@ -37,7 +36,6 @@ import com.intellij.openapi.progress.Task.Backgroundable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.ThrowableComputable
-import com.intellij.util.Consumer
 import com.urswolfer.gerrit.client.rest.GerritAuthData
 import com.urswolfer.gerrit.client.rest.GerritRestApi
 import com.urswolfer.gerrit.client.rest.GerritRestApiFactory
@@ -73,7 +71,7 @@ class GerritUtil @Inject constructor(
     private val userAgentClientBuilderExtension: UserAgentClientBuilderExtension,
     private val selectedRevisions: SelectedRevisions
 ) {
-    fun <T> accessToGerritWithModalProgress(
+    private fun <T> accessToGerritWithModalProgress(
         project: Project?,
         computable: ThrowableComputable<T, Exception?>
     ): T {
@@ -98,13 +96,13 @@ class GerritUtil @Inject constructor(
         changeId: String?,
         revision: String?,
         reviewInput: ReviewInput?,
-        project: Project?,
-        consumer: Consumer<Void?>
+        project: Project,
+        consumer: (Unit) -> Unit
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = lambda@{
             try {
                 gerritClient.changes().id(changeId).revision(revision).review(reviewInput)
-                return@Supplier null
+                return@lambda
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -115,13 +113,12 @@ class GerritUtil @Inject constructor(
     fun postSubmit(
         changeId: String?,
         submitInput: SubmitInput?,
-        project: Project?,
-        consumer: Consumer<Void?>
+        project: Project,
+        consumer: (Unit) -> Unit
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeId).current().submit(submitInput)
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -131,12 +128,11 @@ class GerritUtil @Inject constructor(
 
     fun postPublish(
         changeId: String?,
-        project: Project?
+        project: Project
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeId).publish()
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -146,12 +142,11 @@ class GerritUtil @Inject constructor(
 
     fun delete(
         changeId: String?,
-        project: Project?
+        project: Project
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeId).delete()
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -162,12 +157,11 @@ class GerritUtil @Inject constructor(
     fun postAbandon(
         changeId: String?,
         abandonInput: AbandonInput?,
-        project: Project?
+        project: Project
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeId).abandon(abandonInput)
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -178,12 +172,11 @@ class GerritUtil @Inject constructor(
     fun addReviewer(
         changeId: String?,
         reviewerName: String?,
-        project: Project?
+        project: Project
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeId).addReviewer(reviewerName)
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -197,16 +190,15 @@ class GerritUtil @Inject constructor(
     fun changeStarredStatus(
         id: String?,
         starred: Boolean,
-        project: Project?
+        project: Project
     ) {
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 if (starred) {
                     gerritClient.accounts().self().starChange(id)
                 } else {
                     gerritClient.accounts().self().unstarChange(id)
                 }
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -221,15 +213,14 @@ class GerritUtil @Inject constructor(
         changeNr: Int,
         revision: String?,
         filePath: String?,
-        project: Project?
+        project: Project
     ) {
         if (!gerritSettings.isLoginAndPasswordAvailable) {
             return
         }
-        val supplier = Supplier<Void?> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeNr).revision(revision).setReviewed(filePath, true)
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -237,21 +228,21 @@ class GerritUtil @Inject constructor(
         accessGerrit(supplier, {}, project, "Failed set file review status for Gerrit change")
     }
 
-    fun getChangesToReview(project: Project?, consumer: Consumer<List<ChangeInfo>>) {
+    fun getChangesToReview(project: Project, consumer: (List<ChangeInfo>) -> Unit) {
         val queryRequest = gerritClient.changes().query("is:open+reviewer:self")
             .withOption(ListChangesOption.DETAILED_ACCOUNTS)
         getChanges(queryRequest, project, consumer)
     }
 
-    fun getChangesForProject(query: String?, project: Project?, consumer: Consumer<LoadChangesProxy>) {
+    fun getChangesForProject(query: String?, project: Project, consumer: (LoadChangesProxy) -> Unit) {
         val fullQuery = if (!gerritSettings.listAllChanges) {
             appendQueryStringForProject(project, query)
         } else query
         getChanges(fullQuery, project, consumer)
     }
 
-    fun getChanges(query: String?, project: Project?, consumer: Consumer<LoadChangesProxy>) {
-        val supplier = Supplier {
+    fun getChanges(query: String?, project: Project, consumer: (LoadChangesProxy) -> Unit) {
+        val supplier = {
             val queryRequest = gerritClient.changes().query(query)
                 .withOptions(
                     EnumSet.of(
@@ -268,17 +259,16 @@ class GerritUtil @Inject constructor(
         accessGerrit(supplier, consumer, project)
     }
 
-    fun getChanges(queryRequest: Changes.QueryRequest, project: Project?, consumer: Consumer<List<ChangeInfo>>) {
-        val supplier = Supplier {
+    fun getChanges(queryRequest: Changes.QueryRequest, project: Project, consumer: (List<ChangeInfo>) -> Unit) {
+        val supplier = {
             try {
-                return@Supplier queryRequest.get()
+                queryRequest.get()
             } catch (e: RestApiException) {
                 // remove special handling (-> just notify error) once we drop Gerrit < 2.9 support
                 if (e is HttpStatusException) {
-                    val httpStatusException = e
-                    if (httpStatusException.statusCode == 400) {
+                    if (e.statusCode == 400) {
                         var tryFallback = false
-                        val message = httpStatusException.message
+                        val message = e.message
                         if (message!!.matches(".*Content:.*\"-S\".*".toRegex())) {
                             tryFallback = true
                             queryRequest.withStart(0) // remove start, trust that sortkey is set
@@ -292,16 +282,16 @@ class GerritUtil @Inject constructor(
                         }
                         if (tryFallback) {
                             try {
-                                return@Supplier queryRequest.get()
+                                queryRequest.get()
                             } catch (ex: RestApiException) {
                                 notifyError(ex, "Failed to get Gerrit changes.", project)
-                                return@Supplier emptyList<ChangeInfo>()
+                                emptyList<ChangeInfo>()
                             }
                         }
                     }
                 }
                 notifyError(e, "Failed to get Gerrit changes.", project)
-                return@Supplier emptyList<ChangeInfo>()
+                emptyList<ChangeInfo>()
             }
         }
         accessGerrit(supplier, consumer, project)
@@ -377,7 +367,7 @@ class GerritUtil @Inject constructor(
         return path
     }
 
-    fun showAddGitRepositoryNotification(project: Project?) {
+    private fun showAddGitRepositoryNotification(project: Project?) {
         val notification = NotificationBuilder(
             project, "Insufficient dependencies for Gerrit plugin",
             "Please configure a Git repository.<br/><a href='vcs'>Open Settings</a>"
@@ -391,8 +381,8 @@ class GerritUtil @Inject constructor(
         notificationService.notifyWarning(notification)
     }
 
-    fun getChangeDetails(changeNr: Int, project: Project?, consumer: Consumer<ChangeInfo>) {
-        val supplier = Supplier {
+    fun getChangeDetails(changeNr: Int, project: Project, consumer: (ChangeInfo) -> Unit) {
+        val supplier = {
             try {
                 val options = EnumSet.of(
                     ListChangesOption.ALL_REVISIONS,
@@ -402,19 +392,19 @@ class GerritUtil @Inject constructor(
                     ListChangesOption.DETAILED_LABELS
                 )
                 try {
-                    return@Supplier gerritClient.changes().id(changeNr)[options]
+                    gerritClient.changes().id(changeNr)[options]
                 } catch (e: HttpStatusException) {
                     // remove special handling (-> just notify error) once we drop Gerrit < 2.7 support
                     if (e.statusCode == 400) {
                         options.remove(ListChangesOption.MESSAGES)
-                        return@Supplier gerritClient.changes().id(changeNr)[options]
+                        gerritClient.changes().id(changeNr)[options]
                     } else {
                         throw e
                     }
                 }
             } catch (e: RestApiException) {
                 notifyError(e, "Failed to get Gerrit change.", project)
-                return@Supplier ChangeInfo()
+                ChangeInfo()
             }
         }
         accessGerrit(supplier, consumer, project)
@@ -426,22 +416,22 @@ class GerritUtil @Inject constructor(
     fun getComments(
         changeNr: Int,
         revision: String?,
-        project: Project?,
+        project: Project,
         includePublishedComments: Boolean,
         includeDraftComments: Boolean,
-        consumer: Consumer<Map<String, List<CommentInfo>>>
+        consumer: (Map<String, List<CommentInfo>>) -> Unit
     ) {
-        val supplier = Supplier<Map<String, List<CommentInfo>>> {
+        val supplier = {
             try {
                 val comments = if (includePublishedComments) {
                     gerritClient.changes().id(changeNr).revision(revision).comments()
                 } else {
-                    Maps.newHashMap()
+                    emptyMap()
                 }
                 val drafts = if (includeDraftComments && gerritSettings.isLoginAndPasswordAvailable) {
                     gerritClient.changes().id(changeNr).revision(revision).drafts()
                 } else {
-                    Maps.newHashMap()
+                    emptyMap()
                 }
 
                 val allComments = HashMap(drafts)
@@ -449,13 +439,13 @@ class GerritUtil @Inject constructor(
                     val commentInfos = allComments.getOrPut(key) { mutableListOf() }
                     commentInfos.addAll(value)
                 }
-                return@Supplier allComments
+                allComments
             } catch (e: RestApiException) {
                 // remove check once we drop Gerrit < 2.7 support and fail in any case
                 if (e !is HttpStatusException || e.statusCode != 404) {
                     notifyError(e, "Failed to get Gerrit comments.", project)
                 }
-                return@Supplier TreeMap<String, MutableList<CommentInfo>>()
+                emptyMap()
             }
         }
         accessGerrit(supplier, consumer, project)
@@ -465,21 +455,20 @@ class GerritUtil @Inject constructor(
         changeNr: Int,
         revision: String?,
         draftInput: DraftInput,
-        project: Project?,
-        consumer: Consumer<CommentInfo>
+        project: Project,
+        consumer: (CommentInfo) -> Unit
     ) {
-        val supplier = Supplier {
+        val supplier = {
             try {
-                val commentInfo: CommentInfo
-                if (draftInput.id != null) {
-                    commentInfo = gerritClient.changes().id(changeNr).revision(revision)
+                val commentInfo = if (draftInput.id != null) {
+                    gerritClient.changes().id(changeNr).revision(revision)
                         .draft(draftInput.id).update(draftInput)
                 } else {
                     val draftApi = gerritClient.changes().id(changeNr).revision(revision)
                         .createDraft(draftInput)
-                    commentInfo = draftApi.get()
+                    draftApi.get()
                 }
-                return@Supplier commentInfo
+                commentInfo
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -491,13 +480,12 @@ class GerritUtil @Inject constructor(
         changeNr: Int,
         revision: String?,
         draftCommentId: String?,
-        project: Project?,
-        consumer: Consumer<Void>
+        project: Project,
+        consumer: (Unit) -> Unit
     ) {
-        val supplier = Supplier<Void> {
+        val supplier = {
             try {
                 gerritClient.changes().id(changeNr).revision(revision).draft(draftCommentId).delete()
-                return@Supplier null
             } catch (e: RestApiException) {
                 throw RuntimeException(e)
             }
@@ -522,7 +510,7 @@ class GerritUtil @Inject constructor(
      *
      * @return true if we could successfully login with these credentials, false if authentication failed or in the case of some other error.
      */
-    fun checkCredentials(project: Project?): Boolean {
+    private fun checkCredentials(project: Project?): Boolean {
         try {
             return checkCredentials(project, gerritSettings)
         } catch (e: Exception) {
@@ -562,8 +550,8 @@ class GerritUtil @Inject constructor(
         }
     }
 
-    fun getFirstFetchInfo(changeDetails: ChangeInfo?): FetchInfo? {
-        if (changeDetails!!.revisions == null) {
+    fun getFirstFetchInfo(changeDetails: ChangeInfo): FetchInfo? {
+        if (changeDetails.revisions == null) {
             return null
         }
         val revisionInfo = changeDetails.revisions[selectedRevisions[changeDetails]]
@@ -574,7 +562,7 @@ class GerritUtil @Inject constructor(
         if (revisionInfo == null) {
             return null
         }
-        return Iterables.getFirst(revisionInfo.fetch.values, null)
+        return revisionInfo.fetch.values.firstOrNull()
     }
 
     fun testGitExecutable(project: Project?): Boolean {
@@ -605,7 +593,7 @@ class GerritUtil @Inject constructor(
         return message
     }
 
-    private fun <T> accessGerrit(supplier: Supplier<T>, consumer: Consumer<T>, project: Project?) {
+    private fun <T> accessGerrit(supplier: () -> T, consumer: (T) -> Unit, project: Project) {
         accessGerrit(supplier, consumer, project, null)
     }
 
@@ -614,14 +602,14 @@ class GerritUtil @Inject constructor(
      * and the provided consumer will not be executed.
      */
     private fun <T> accessGerrit(
-        supplier: Supplier<T>,
-        consumer: Consumer<T>,
-        project: Project?,
+        supplier: () -> T,
+        consumer: (T) -> Unit,
+        project: Project,
         errorMessage: String?
     ) {
-        ApplicationManager.getApplication().invokeLater(Runnable {
-            if (project!!.isDisposed) {
-                return@Runnable
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) {
+                return@invokeLater
             }
             val backgroundTask: Backgroundable = object : Backgroundable(project, "Accessing Gerrit", true) {
                 override fun run(indicator: ProgressIndicator) {
@@ -629,13 +617,13 @@ class GerritUtil @Inject constructor(
                         return
                     }
                     try {
-                        val result = supplier.get()
-                        ApplicationManager.getApplication().invokeLater(Runnable {
+                        val result = supplier()
+                        ApplicationManager.getApplication().invokeLater invoke@{
                             if (project.isDisposed) {
-                                return@Runnable
+                                return@invoke
                             }
-                            consumer.consume(result)
-                        })
+                            consumer(result)
+                        }
                     } catch (e: RuntimeException) {
                         if (errorMessage != null) {
                             notifyError(e, errorMessage, project)
@@ -647,7 +635,7 @@ class GerritUtil @Inject constructor(
             }
             gerritSettings.preloadPassword()
             backgroundTask.queue()
-        })
+        }
     }
 
     private fun notifyError(throwable: Throwable, errorMessage: String, project: Project?) {

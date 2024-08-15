@@ -15,20 +15,19 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui
 
-import com.google.common.base.*
-import com.google.common.collect.*
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.CommentInfo
 import com.google.gerrit.extensions.restapi.RestApiException
 import com.google.inject.Inject
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vcs.changes.*
+import com.intellij.openapi.vcs.changes.Change
 import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.SimpleTextAttributes
 import com.urswolfer.gerrit.client.rest.GerritRestApi
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.PathUtils
 import java.util.*
 
 /**
@@ -37,16 +36,16 @@ import java.util.*
 class GerritCommentCountChangeNodeDecorator @Inject constructor(private val selectedRevisions: SelectedRevisions) :
     GerritChangeNodeDecorator {
     @Inject
-    private val gerritApi: GerritRestApi? = null
+    private lateinit var gerritApi: GerritRestApi
 
     @Inject
-    private val pathUtils: PathUtils? = null
+    private lateinit var pathUtils: PathUtils
 
     @Inject
-    private val gerritSettings: GerritSettings? = null
+    private lateinit var gerritSettings: GerritSettings
 
     @Inject
-    private val log: Logger? = null
+    private lateinit var log: Logger
 
     private var selectedChange: ChangeInfo? = null
     private var comments = setupCommentsSupplier()
@@ -76,8 +75,8 @@ class GerritCommentCountChangeNodeDecorator @Inject constructor(private val sele
         val affectedFilePath = getAffectedFilePath(change)
         if (affectedFilePath != null) {
             val text = getNodeSuffix(project, affectedFilePath)
-            if (!Strings.isNullOrEmpty(text)) {
-                component.append(String.format(" (%s)", text), SimpleTextAttributes.GRAY_ITALIC_ATTRIBUTES)
+            if (text.isNotEmpty()) {
+                component.append(" ($text)", SimpleTextAttributes.GRAY_ITALIC_ATTRIBUTES)
                 component.repaint()
             }
         }
@@ -101,85 +100,81 @@ class GerritCommentCountChangeNodeDecorator @Inject constructor(private val sele
     }
 
     private fun getNodeSuffix(project: Project, affectedFilePath: String): String {
-        var fileName = getRelativeOrAbsolutePath(project, affectedFilePath)
-        fileName = PathUtils.Companion.ensureSlashSeparators(fileName)
-        val parts: MutableList<String?> = Lists.newArrayList()
+        val path = getRelativeOrAbsolutePath(project, affectedFilePath)
+        val fileName = PathUtils.ensureSlashSeparators(path)
+        val parts = mutableListOf<String>()
 
-        val commentsMap = comments.get()
+        val commentsMap = comments.value
         val commentsForFile = commentsMap[fileName]
         if (commentsForFile != null) {
-            parts.add(String.format("%s comment%s", commentsForFile.size, if (commentsForFile.size == 1) "" else "s"))
+            parts.add("${commentsForFile.size} comment${if (commentsForFile.size == 1) "" else "s"}")
         }
 
-        val draftsMap = drafts.get()
+        val draftsMap = drafts.value
         val draftsForFile = draftsMap[fileName]
         if (draftsForFile != null) {
-            parts.add(String.format("%s draft%s", draftsForFile.size, if (draftsForFile.size == 1) "" else "s"))
+            parts.add("${draftsForFile.size} draft${if (draftsForFile.size == 1) "" else "s"}")
         }
 
-        if (reviewed.get().contains(fileName)) {
+        if (reviewed.value.contains(fileName)) {
             parts.add("reviewed")
         }
 
-        return SUFFIX_JOINER.join(parts)
+        return parts.joinToString(", ")
     }
 
-    private fun getRelativeOrAbsolutePath(project: Project, absoluteFilePath: String): String? {
-        return pathUtils!!.getRelativeOrAbsolutePath(project, absoluteFilePath, selectedChange!!.project)
+    private fun getRelativeOrAbsolutePath(project: Project, absoluteFilePath: String): String {
+        return pathUtils.getRelativeOrAbsolutePath(project, absoluteFilePath, selectedChange!!.project)
     }
 
-    private fun setupCommentsSupplier(): Supplier<Map<String, List<CommentInfo>>> {
-        return Suppliers.memoize {
+    private fun setupCommentsSupplier(): Lazy<Map<String, List<CommentInfo>>> {
+        return lazy {
             try {
-                return@memoize gerritApi!!.changes()
+                gerritApi.changes()
                     .id(selectedChange!!.id)
                     .revision(selectedRevisionId)
                     .comments()
             } catch (e: RestApiException) {
-                log!!.warn(e)
-                return@memoize emptyMap<String, List<CommentInfo>>()
+                log.warn(e)
+                emptyMap()
             }
         }
     }
 
-    private fun setupDraftsSupplier(): Supplier<Map<String, List<CommentInfo>>> {
-        return Suppliers.memoize {
-            if (!gerritSettings!!.isLoginAndPasswordAvailable) {
-                return@memoize emptyMap<String, List<CommentInfo>>()
+    private fun setupDraftsSupplier(): Lazy<Map<String, List<CommentInfo>>> {
+        return lazy {
+            if (!gerritSettings.isLoginAndPasswordAvailable) {
+                return@lazy emptyMap()
             }
             try {
-                return@memoize gerritApi!!.changes()
+                gerritApi.changes()
                     .id(selectedChange!!.id)
                     .revision(selectedRevisionId)
                     .drafts()
             } catch (e: RestApiException) {
-                log!!.warn(e)
-                return@memoize emptyMap<String, List<CommentInfo>>()
+                log.warn(e)
+                emptyMap()
             }
         }
     }
 
-    private fun setupReviewedSupplier(): Supplier<Set<String?>> {
-        return Suppliers.memoize {
-            if (!gerritSettings!!.isLoginAndPasswordAvailable) {
-                return@memoize emptySet<String>()
+    private fun setupReviewedSupplier(): Lazy<Set<String?>> {
+        return lazy {
+            if (!gerritSettings.isLoginAndPasswordAvailable) {
+                return@lazy emptySet()
             }
             try {
-                return@memoize gerritApi!!.changes()
+                gerritApi.changes()
                     .id(selectedChange!!.id)
                     .revision(selectedRevisionId)
                     .reviewed()
             } catch (e: RestApiException) {
-                log!!.warn(e)
-                return@memoize emptySet<String>()
+                log.warn(e)
+                emptySet()
             }
         }
     }
 
     private val selectedRevisionId: String?
-        get() = selectedRevisions[selectedChange]
-
-    companion object {
-        private val SUFFIX_JOINER: Joiner = Joiner.on(", ").skipNulls()
-    }
+        get() = selectedRevisions[selectedChange!!]
 }

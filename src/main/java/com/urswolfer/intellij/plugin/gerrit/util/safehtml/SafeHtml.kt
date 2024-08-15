@@ -32,7 +32,7 @@ abstract class SafeHtml {
      *
      * Lines that start with whitespace are assumed to be preformatted.
      */
-    fun wikify(): SafeHtml? {
+    fun wikify(): SafeHtml {
         val r = SafeHtmlBuilder()
         for (p in linkify().asString().split("\n\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()) {
             if (isQuote(p)) {

@@ -16,7 +16,7 @@
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
 import com.google.gerrit.extensions.client.ChangeStatus
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
@@ -49,13 +49,13 @@ open class DeleteAction : AbstractLoggedInChangeAction("Delete Draft", "Delete D
         if (!"DELETE".equals(deleteAction.method, ignoreCase = true)) {
             return false
         }
-        return java.lang.Boolean.TRUE == deleteAction.enabled
+        return deleteAction.enabled
     }
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
         val selectedChange = getSelectedChange(anActionEvent) ?: return
 
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         gerritUtil.delete(selectedChange.id, project)
     }
 

@@ -15,7 +15,7 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.google.inject.Inject
 import com.intellij.dvcs.ui.CompareBranchesDialog
 import com.intellij.icons.AllIcons
@@ -25,10 +25,9 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
-import com.urswolfer.intellij.plugin.gerrit.util.*
-import git4idea.repo.GitRepository
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
 import git4idea.ui.branch.GitCompareBranchesHelper
-import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
@@ -48,20 +47,19 @@ open class CompareBranchAction :
     override fun actionPerformed(anActionEvent: AnActionEvent) {
         val selectedChange = getSelectedChange(anActionEvent) ?: return
 
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         val successCallable = {
             diffChange(project, selectedChange)
-            null
         }
         fetchAction.fetchChange(selectedChange, project, successCallable)
     }
 
-    private fun diffChange(project: Project?, changeInfo: ChangeInfo?) {
-        val gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeInfo!!.project)
+    private fun diffChange(project: Project, changeInfo: ChangeInfo) {
+        val gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeInfo.project)
         if (gitRepository == null) {
             val notification = NotificationBuilder(
                 project, "Error",
-                String.format("No repository found for Gerrit project: '%s'.", changeInfo.project)
+                "No repository found for Gerrit project: '${changeInfo.project}'."
             )
             notificationService.notifyError(notification)
             return
@@ -72,7 +70,7 @@ open class CompareBranchAction :
         val currentBranchName = currentBranch?.fullName ?: gitRepository.currentRevision
         checkNotNull(currentBranchName) { "Current branch is neither a named branch nor a revision" }
 
-        val compareInfo = gerritGitUtil.loadCommitsToCompare(listOf(gitRepository), branchName, project!!)
+        val compareInfo = gerritGitUtil.loadCommitsToCompare(listOf(gitRepository), branchName, project)
         ApplicationManager.getApplication().invokeLater {
             CompareBranchesDialog(
                 GitCompareBranchesHelper(project),

@@ -34,14 +34,14 @@ import javax.swing.event.ChangeEvent
 /**
  * @author Urs Wolfer
  */
-class SafeHtmlTextEditor(project: Project?) : JPanel(BorderLayout()) {
+class SafeHtmlTextEditor(project: Project) : JPanel(BorderLayout()) {
     val messageField: EditorTextField
 
     init {
         val tabbedPane = TabbedPaneImpl(SwingConstants.TOP)
         tabbedPane.setKeyboardNavigation(TabbedPaneImpl.DEFAULT_PREV_NEXT_SHORTCUTS)
 
-        messageField = CommitMessage(project!!).editorField
+        messageField = CommitMessage(project).editorField
         messageField.border = BorderFactory.createEmptyBorder()
         val messagePanel = JPanel(BorderLayout())
         messagePanel.add(messageField, BorderLayout.CENTER)
@@ -64,11 +64,9 @@ class SafeHtmlTextEditor(project: Project?) : JPanel(BorderLayout()) {
 
         tabbedPane.addChangeListener { e: ChangeEvent ->
             if ((e.source as TabbedPaneImpl).selectedComponent === previewEditorPane) {
-                val content = String.format(
-                    "<html><head>%s</head><body>%s</body></html>",
-                    UIUtil.getCssFontDeclaration(UIUtil.getLabelFont()),
+                val content = "<html><head>${UIUtil.getCssFontDeclaration(UIUtil.getLabelFont())}</head><body>${
                     TextToHtml.textToHtml(messageField.text)
-                )
+                }</body></html>"
                 previewEditorPane.text = content
             }
         }

@@ -15,7 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.common.base.Optional
 import com.google.gerrit.extensions.common.ChangeInfo
 import com.google.inject.Inject
 import com.intellij.openapi.actionSystem.AnAction
@@ -23,7 +22,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.UpdateInBackground
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.util.Consumer
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
 import javax.swing.Icon
 
@@ -39,7 +37,7 @@ abstract class AbstractChangeAction(text: String?, description: String?, icon: I
         return ActionUtil.getSelectedChange(anActionEvent)
     }
 
-    protected fun getChangeDetail(selectedChange: ChangeInfo, project: Project?, consumer: Consumer<ChangeInfo>) {
+    protected fun getChangeDetail(selectedChange: ChangeInfo, project: Project, consumer: (ChangeInfo) -> Unit) {
         gerritUtil.getChangeDetails(selectedChange._number, project, consumer)
     }
 }

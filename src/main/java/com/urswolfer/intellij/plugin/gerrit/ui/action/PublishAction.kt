@@ -16,7 +16,7 @@
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
 import com.google.gerrit.extensions.client.ChangeStatus
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
@@ -47,14 +47,13 @@ open class PublishAction :
 // return false once we drop Gerrit < 2.9 support
                 return true
         val publishAction = revisionActions["publish"]
-        return publishAction != null && java.lang.Boolean.TRUE == publishAction.enabled
+        return publishAction != null && publishAction.enabled
     }
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
-
         val selectedChange = getSelectedChange(anActionEvent) ?: return
 
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         gerritUtil.postPublish(selectedChange.id, project)
     }
 

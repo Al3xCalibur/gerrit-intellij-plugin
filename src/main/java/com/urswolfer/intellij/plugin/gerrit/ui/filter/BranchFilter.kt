@@ -16,10 +16,12 @@
 package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
 import com.google.common.base.Function
-import com.google.common.base.Optional
-import com.google.common.collect.*
+import com.google.common.collect.Ordering
 import com.google.inject.Inject
-import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.util.Consumer
@@ -42,13 +44,13 @@ class BranchFilter : AbstractChangesFilter() {
     private var value: BranchDescriptor? = null
 
     override fun getAction(project: Project?): AnAction {
-        return BranchPopupAction(project, "Branch")
+        return BranchPopupAction(project!!, "Branch")
     }
 
     override val searchQueryPart: String?
         get() = value?.query
 
-    inner class BranchPopupAction(private val project: Project?, filterName: String) : BasePopupAction(filterName) {
+    inner class BranchPopupAction(private val project: Project, filterName: String) : BasePopupAction(filterName) {
         init {
             updateFilterValueLabel("All")
         }
@@ -83,11 +85,7 @@ class BranchFilter : AbstractChangesFilter() {
                             override fun actionPerformed(e: AnActionEvent) {
                                 value = BranchDescriptor(repository, branch)
                                 updateFilterValueLabel(
-                                    String.format(
-                                        "%s (%s)",
-                                        branch.nameForRemoteOperations,
-                                        getNameForRepository(repository)
-                                    )
+                                    "${branch.nameForRemoteOperations} (${getNameForRepository(repository)})"
                                 )
                                 setChanged()
                                 notifyObservers(project)
@@ -100,7 +98,7 @@ class BranchFilter : AbstractChangesFilter() {
         }
     }
 
-    private fun getNameForRepository(repository: GitRepository): String? {
+    private fun getNameForRepository(repository: GitRepository): String {
         return gerritUtil.getProjectNames(repository.remotes).firstOrNull() ?: ""
     }
 

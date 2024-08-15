@@ -22,21 +22,18 @@ internal class AttMap {
     private val names = ArrayList<String>()
     private val values = ArrayList<String>()
 
-    private var tag: Tag? = ANY
+    private var tag: Tag = ANY
     private var live = 0
 
     fun reset(tagName: String) {
-        tag = TAGS[tagName.lowercase(Locale.getDefault())]
-        if (tag == null) {
-            tag = ANY
-        }
+        tag = TAGS[tagName.lowercase(Locale.getDefault())] ?: ANY
         live = 0
     }
 
     fun onto(raw: Buffer, esc: SafeHtmlBuilder) {
         for (i in 0 until live) {
             val v = values[i]
-            if (!v.isEmpty()) {
+            if (v.isNotEmpty()) {
                 raw.append(" ")
                 raw.append(names[i])
                 raw.append("=\"")
@@ -47,9 +44,7 @@ internal class AttMap {
     }
 
     fun get(name: String): String {
-        var name = name
-        name = name.lowercase(Locale.getDefault())
-
+        val name = name.lowercase(Locale.getDefault())
         for (i in 0 until live) {
             if (name == names[i]) {
                 return values[i]
@@ -59,9 +54,8 @@ internal class AttMap {
     }
 
     fun set(name: String, value: String) {
-        var name = name
-        name = name.lowercase(Locale.getDefault())
-        tag!!.assertSafe(name, value)
+        val name = name.lowercase(Locale.getDefault())
+        tag.assertSafe(name, value)
 
         for (i in 0 until live) {
             if (name == names[i]) {

@@ -15,8 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser
 
-import com.google.common.base.Joiner
-import com.google.common.collect.Iterables
 import git4idea.GitCommit
 import java.text.SimpleDateFormat
 import java.util.*
@@ -37,25 +35,24 @@ import java.util.*
  */
 class CommitMessageFormatter(private val gitCommit: GitCommit) {
     val longCommitMessage: String
-        get() = String.format(
-            PATTERN,
-            parentLine,
-            gitCommit.author.name, gitCommit.author.email,
-            DATE_FORMAT.get().format(Date(gitCommit.authorTime)),
-            gitCommit.committer.name, gitCommit.committer.email,
-            DATE_FORMAT.get().format(gitCommit.commitTime),
-            gitCommit.fullMessage
-        )
+        get() = buildString {
+            append(parentLine)
+            appendLine("Author:     ${gitCommit.author.name} <${gitCommit.author.email}>")
+            appendLine("AuthorDate: ${DATE_FORMAT.get().format(Date(gitCommit.authorTime))}")
+            appendLine("Commit:     ${gitCommit.committer.name} <${gitCommit.committer.email}>\n")
+            appendLine("CommitDate: ${DATE_FORMAT.get().format(gitCommit.commitTime)}")
+            appendLine()
+            appendLine(gitCommit.fullMessage)
+        }
 
     private val parentLine: String
         get() {
             val parents = gitCommit.parents
             if (parents.size == 1) {
-                val parent = Iterables.getOnlyElement(parents)
-                return String.format(PARENT_PATTERN, parent!!.asString())
+                return "Parent:     ${parents.first().asString()}\n"
             } else if (parents.size > 1) {
-                val allParents = Joiner.on(MERGE_PATTERN_DELIMITER).join(parents)
-                return String.format(MERGE_PATTERN, allParents)
+                val allParents = parents.joinToString(MERGE_PATTERN_DELIMITER)
+                return "Merge Of:   $allParents\n"
             } else {
                 return ""
             }
@@ -71,15 +68,6 @@ class CommitMessageFormatter(private val gitCommit: GitCommit) {
                 return dateFormat
             }
         }
-        private const val PARENT_PATTERN = "Parent:     %s\n"
-        private const val MERGE_PATTERN = "Merge Of:   %s\n"
         private const val MERGE_PATTERN_DELIMITER = "\n            "
-        private const val PATTERN = "%s" +
-                "Author:     %s <%s>\n" +
-                "AuthorDate: %s\n" +
-                "Commit:     %s <%s>\n" +
-                "CommitDate: %s\n" +
-                "\n" +
-                "%s\n"
     }
 }

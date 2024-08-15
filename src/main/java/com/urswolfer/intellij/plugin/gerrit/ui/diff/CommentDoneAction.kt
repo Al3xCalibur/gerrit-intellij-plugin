@@ -37,9 +37,9 @@ class CommentDoneAction(
     private val editor: Editor,
     private val commentsDiffTool: CommentsDiffTool,
     private val gerritUtil: GerritUtil,
-    private val gerritSettings: GerritSettings?,
+    private val gerritSettings: GerritSettings,
     private val fileComment: Comment,
-    private val changeInfo: ChangeInfo?,
+    private val changeInfo: ChangeInfo,
     private val revisionId: String?
 ) : AnAction("Done", null, AllIcons.Actions.Checked), DumbAware, UpdateInBackground {
     override fun actionPerformed(e: AnActionEvent) {
@@ -51,9 +51,9 @@ class CommentDoneAction(
         comment.side = fileComment.side
         comment.range = fileComment.range
 
-        val project = e.getData(PlatformDataKeys.PROJECT)
+        val project = e.getData(PlatformDataKeys.PROJECT)!!
         gerritUtil.saveDraftComment(
-            changeInfo!!._number, revisionId, comment, project
+            changeInfo._number, revisionId, comment, project
         ) { commentInfo: CommentInfo ->
             commentsDiffTool.addComment(
                 editor, changeInfo, revisionId, project, commentInfo
@@ -62,6 +62,6 @@ class CommentDoneAction(
     }
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = gerritSettings!!.isLoginAndPasswordAvailable
+        e.presentation.isEnabled = gerritSettings.isLoginAndPasswordAvailable
     }
 }

@@ -44,9 +44,7 @@ class CommentBalloonBuilder {
     }
 
     companion object {
-        private val POPUP_TEXT = String.format(
-            "Hit %s to create a comment. It will be published once you post your review.",
-            KeymapUtil.getShortcutsText(CommonShortcuts.CTRL_ENTER.shortcuts)
-        )
+        private val POPUP_TEXT =
+            "Hit ${KeymapUtil.getShortcutsText(CommonShortcuts.CTRL_ENTER.shortcuts)} to create a comment. It will be published once you post your review."
     }
 }

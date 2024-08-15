@@ -15,10 +15,8 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui
 
-import com.google.common.base.Function
-import com.google.common.base.Functions
-import com.google.common.collect.*
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.RevisionInfo
 import com.google.inject.Inject
 import com.intellij.openapi.ui.ComboBoxTableRenderer
 import com.intellij.util.ui.ColumnInfo
@@ -41,10 +39,10 @@ import javax.swing.table.TableCellRenderer
  */
 class GerritSelectRevisionInfoColumn : ColumnInfo<ChangeInfo, String>("Patch Set") {
     @Inject
-    private val selectedRevisions: SelectedRevisions? = null
+    private lateinit var selectedRevisions: SelectedRevisions
 
     override fun valueOf(changeInfo: ChangeInfo): String {
-        val activeRevision = selectedRevisions!![changeInfo] ?: return ""
+        val activeRevision = selectedRevisions[changeInfo] ?: return ""
         val revisionInfo = changeInfo.revisions[activeRevision]!!
         return getRevisionLabelFunction(changeInfo)(activeRevision to revisionInfo)
     }
@@ -63,7 +61,7 @@ class GerritSelectRevisionInfoColumn : ColumnInfo<ChangeInfo, String>("Patch Set
                 val rev = getRevisionLabelFunction(changeInfo)
                 val map: Map<String, Pair<String?, RevisionInfo?>> = pairs.associateBy { rev(it) }
                 val pair = map[value]!!
-                selectedRevisions!![changeInfo.id] = pair.first
+                selectedRevisions[changeInfo.id] = pair.first
             }
 
             override fun editingCanceled(e: ChangeEvent) {}

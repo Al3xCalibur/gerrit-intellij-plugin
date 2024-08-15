@@ -16,7 +16,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.git
 
-import com.google.common.base.Optional
 import com.google.gerrit.extensions.common.*
 import com.google.inject.Inject
 import com.intellij.dvcs.util.CommitCompareInfo
@@ -26,7 +25,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task.Backgroundable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.*
-import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vcs.VcsException
 import com.intellij.openapi.vcs.changes.ChangeListManagerImpl
 import com.intellij.openapi.vcs.history.VcsRevisionNumber
@@ -50,7 +48,6 @@ import git4idea.merge.GitConflictResolver
 import git4idea.repo.GitRemote
 import git4idea.repo.GitRepository
 import git4idea.util.GitUntrackedFilesHelper
-import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
@@ -62,12 +59,12 @@ class GerritGitUtil @Inject constructor(
     private val gerritSettings: GerritSettings,
     private val notificationService: NotificationService
 ) {
-    fun getRepositories(project: Project?): Iterable<GitRepository> {
-        val repositoryManager = GitUtil.getRepositoryManager(project!!)
+    fun getRepositories(project: Project): Iterable<GitRepository> {
+        val repositoryManager = GitUtil.getRepositoryManager(project)
         return repositoryManager.repositories
     }
 
-    fun getRepositoryForGerritProject(project: Project?, gerritProjectName: String): GitRepository? {
+    fun getRepositoryForGerritProject(project: Project, gerritProjectName: String): GitRepository? {
         val repositoriesFromRoots = getRepositories(project)
         for (repository in repositoriesFromRoots) {
             for (remote in repository.remotes) {
@@ -86,11 +83,11 @@ class GerritGitUtil @Inject constructor(
 
     fun getRemoteForChange(
         project: Project?,
-        gitRepository: GitRepository?,
-        fetchInfo: FetchInfo?
+        gitRepository: GitRepository,
+        fetchInfo: FetchInfo
     ): GitRemote? {
-        val url = fetchInfo!!.url
-        for (remote in gitRepository!!.remotes) {
+        val url = fetchInfo.url
+        for (remote in gitRepository.remotes) {
             val repositoryUrls: MutableList<String> = ArrayList()
             repositoryUrls.addAll(remote.urls)
             repositoryUrls.addAll(remote.pushUrls)
@@ -104,31 +101,29 @@ class GerritGitUtil @Inject constructor(
         }
         val notification = NotificationBuilder(
             project, "Error",
-            String.format(
-                "Could not fetch commit because no remote url matches Gerrit host.<br/>" +
-                        "Git repository: '%s'.", gitRepository.presentableUrl
-            )
+            "Could not fetch commit because no remote url matches Gerrit host.<br/>" +
+                    "Git repository: '${gitRepository.presentableUrl}'."
         )
         notificationService.notifyError(notification)
         return null
     }
 
     fun fetchChange(
-        project: Project?,
-        gitRepository: GitRepository?,
+        project: Project,
+        gitRepository: GitRepository,
         fetchInfo: FetchInfo,
-        commitHash: String?,
-        fetchCallback: Callable<Void?>?
+        commitHash: String,
+        fetchCallback: (() -> Unit)?
     ) {
         GitVcs.runInBackground(object : Backgroundable(project, "Fetching...", false) {
             override fun run(indicator: ProgressIndicator) {
                 val remote: GitRemote?
-                val fetch: String?
+                val fetch: String
                 val commitIsFetched = checkIfCommitIsFetched(gitRepository, commitHash)
                 if (commitIsFetched) {
                     // 'git fetch' works with a local path instead of a remote -> this way FETCH_HEAD is set
                     remote = GitRemote(
-                        gitRepository!!.root.path,
+                        gitRepository.root.path,
                         emptyList(), emptySet(), emptyList(), emptyList()
                     )
                     fetch = commitHash
@@ -139,11 +134,11 @@ class GerritGitUtil @Inject constructor(
                     }
                     fetch = fetchInfo.ref
                 }
-                val result = GitFetchSupport.fetchSupport(project!!).fetch(gitRepository!!, remote, fetch!!)
+                val result = GitFetchSupport.fetchSupport(project).fetch(gitRepository, remote, fetch)
                 result.showNotificationIfFailed()
 
                 try {
-                    fetchCallback?.call()
+                    fetchCallback?.invoke()
                 } catch (e: Exception) {
                     throw RuntimeException(e)
                 }
@@ -162,7 +157,7 @@ class GerritGitUtil @Inject constructor(
                     if (gitRepository == null) {
                         val notification = NotificationBuilder(
                             project, "Error",
-                            String.format("No repository found for Gerrit project: '%s'.", changeInfo.project)
+                            "No repository found for Gerrit project: '${changeInfo.project}'."
                         )
                         notificationService.notifyError(notification)
                         return
@@ -298,9 +293,9 @@ class GerritGitUtil @Inject constructor(
         }
     }
 
-    fun checkIfCommitIsFetched(repository: GitRepository?, commitHash: String?): Boolean {
+    fun checkIfCommitIsFetched(repository: GitRepository, commitHash: String): Boolean {
         val listener = FormattedGitLineHandlerListener()
-        val h = GitLineHandler(repository!!.project, repository.root, GitCommand.SHOW)
+        val h = GitLineHandler(repository.project, repository.root, GitCommand.SHOW)
         h.setSilent(false)
         h.setStdoutSuppressed(false)
         h.addParameters(commitHash)

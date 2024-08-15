@@ -44,7 +44,7 @@ class FulltextFilter : AbstractChangesFilter() {
     }
 
     override val searchQueryPart: String?
-        get() = if (!value.isEmpty()) "(" + specialEncodeFulltextQuery(value) + ")" else null
+        get() = if (value.isNotEmpty()) "(" + specialEncodeFulltextQuery(value) + ")" else null
 
     companion object {
         /**

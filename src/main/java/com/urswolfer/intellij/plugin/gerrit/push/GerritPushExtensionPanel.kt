@@ -15,12 +15,7 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.push
 
-import com.google.common.base.Joiner
-import com.google.common.base.Optional
-import com.google.common.base.Splitter
 import com.google.common.base.Strings
-import com.google.common.collect.Lists
-import com.google.common.collect.Maps
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.uiDesigner.core.GridConstraints
@@ -43,48 +38,44 @@ import javax.swing.event.DocumentListener
  */
 class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, private val forceDefaultBranch: Boolean) :
     JPanel() {
-    private var indentedSettingPanel: JPanel? = null
+    private lateinit var indentedSettingPanel: JPanel
 
-    private var pushToGerritCheckBox: JCheckBox? = null
-    private var privateCheckBox: JCheckBox? = null
-    private var unmarkPrivateCheckBox: JCheckBox? = null
-    private var publishDraftCommentsCheckBox: JCheckBox? = null
-    private var wipCheckBox: JCheckBox? = null
-    private var draftChangeCheckBox: JCheckBox? = null
-    private var submitChangeCheckBox: JCheckBox? = null
-    private var readyCheckBox: JCheckBox? = null
-    private var branchTextField: JTextField? = null
-    private var topicTextField: JTextField? = null
-    private var hashTagTextField: JTextField? = null
-    private var reviewersTextField: JTextField? = null
-    private var ccTextField: JTextField? = null
-    private var patchsetDescriptionTextField: JTextField? = null
-    private val gerritPushTargetPanels: MutableMap<GerritPushTargetPanel, String?> = Maps.newHashMap()
+    private lateinit var pushToGerritCheckBox: JCheckBox
+    private lateinit var privateCheckBox: JCheckBox
+    private lateinit var unmarkPrivateCheckBox: JCheckBox
+    private lateinit var publishDraftCommentsCheckBox: JCheckBox
+    private lateinit var wipCheckBox: JCheckBox
+    private lateinit var draftChangeCheckBox: JCheckBox
+    private lateinit var submitChangeCheckBox: JCheckBox
+    private lateinit var readyCheckBox: JCheckBox
+    private lateinit var branchTextField: JTextField
+    private lateinit var topicTextField: JTextField
+    private lateinit var hashTagTextField: JTextField
+    private lateinit var reviewersTextField: JTextField
+    private lateinit var ccTextField: JTextField
+    private lateinit var patchsetDescriptionTextField: JTextField
+    private val gerritPushTargetPanels: MutableMap<GerritPushTargetPanel, String?> = mutableMapOf()
     private var initialized = false
 
     init {
         createLayout()
 
-        pushToGerritCheckBox!!.isSelected = pushToGerritByDefault
-        pushToGerritCheckBox!!.addActionListener(SettingsStateActionListener())
-        setSettingsEnabled(pushToGerritCheckBox!!.isSelected)
+        pushToGerritCheckBox.isSelected = pushToGerritByDefault
+        pushToGerritCheckBox.addActionListener(SettingsStateActionListener())
+        setSettingsEnabled(pushToGerritCheckBox.isSelected)
 
         addChangeListener()
     }
 
     fun registerGerritPushTargetPanel(gerritPushTargetPanel: GerritPushTargetPanel, branch: String?) {
-        var branch = branch
         if (initialized) { // a new dialog gets initialized; start again
             initialized = false
             gerritPushTargetPanels.clear()
         }
 
-        if (branch != null) {
-            branch = branch.replace("^refs/(for|drafts)/".toRegex(), "")
-            branch = branch.replace("%.*$".toRegex(), "")
-        }
-
-        gerritPushTargetPanels[gerritPushTargetPanel] = branch
+        gerritPushTargetPanels[gerritPushTargetPanel] =
+            branch?.replace("^refs/(for|drafts)/".toRegex(), "")
+                ?.replace("%.*$".toRegex(), "")
     }
 
     fun initialized() {
@@ -93,49 +84,39 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         // force a deferred update (changes are monitored only after full construction of dialog)
         SwingUtilities.invokeLater {
             if (forceDefaultBranch) {
-                val gitReviewBranchName = gitReviewBranchName
-                if (gitReviewBranchName.isPresent) {
-                    branchTextField!!.text = gitReviewBranchName.get()
+                val gitReviewBranchName = getGitReviewBranchName()
+                if (gitReviewBranchName != null) {
+                    branchTextField.text = gitReviewBranchName
                 }
             } else if (gerritPushTargetPanels.size == 1) {
                 val branchName = gerritPushTargetPanels.values.iterator().next()
-                val gitReviewBranchName = gitReviewBranchName
-                branchTextField!!.text = gitReviewBranchName.or(branchName)
+                branchTextField.text = getGitReviewBranchName() ?: branchName
             }
             initDestinationBranch()
         }
     }
 
-    private val gitReviewBranchName: Optional<String?>
-        get() {
-            var branchName = Optional.absent<String?>()
+    private fun getGitReviewBranchName(): String? {
+        val dataContext = DataManager.getInstance().getDataContext(this)
+        val openedProject = CommonDataKeys.PROJECT.getData(dataContext) ?: return null
 
-            val dataContext = DataManager.getInstance().getDataContext(this)
-            val openedProject = Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext))
+        val gitReviewFilePath = openedProject.basePath + File.separator + GITREVIEW_FILENAME
 
-            if (openedProject.isPresent) {
-                val gitReviewFilePath = Joiner.on(File.separator).join(
-                    openedProject.get().basePath, GITREVIEW_FILENAME
-                )
-
-                val gitReviewFile = File(gitReviewFilePath)
-                if (gitReviewFile.exists() && gitReviewFile.isFile) {
-                    try {
-                        FileInputStream(gitReviewFilePath).use { fileInputStream ->
-                            val properties = Properties()
-                            properties.load(fileInputStream)
-                            branchName =
-                                Optional.fromNullable(Strings.emptyToNull(properties.getProperty("defaultbranch")))
-                        }
-                    } catch (e: IOException) {
-                        //no need to handle as branch name is already absent and ready to be returned
-                    }
-                    //no need to handle as branch name is already absent and ready to be returned
+        val gitReviewFile = File(gitReviewFilePath)
+        if (gitReviewFile.exists() && gitReviewFile.isFile) {
+            try {
+                FileInputStream(gitReviewFilePath).use { fileInputStream ->
+                    val properties = Properties()
+                    properties.load(fileInputStream)
+                    return Strings.emptyToNull(properties.getProperty("defaultbranch"))
                 }
+            } catch (e: IOException) {
+                //no need to handle as branch name is already absent and ready to be returned
             }
-
-            return branchName
+            //no need to handle as branch name is already absent and ready to be returned
         }
+        return null
+    }
 
     private fun createLayout() {
         val mainPanel = JPanel()
@@ -148,8 +129,8 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         indentedSettingPanel = JPanel(GridLayoutManager(13, 2))
 
         privateCheckBox = JCheckBox("Private (Gerrit 2.15+)")
-        privateCheckBox!!.toolTipText = "Push a private change or to turn a change private."
-        indentedSettingPanel!!.add(
+        privateCheckBox.toolTipText = "Push a private change or to turn a change private."
+        indentedSettingPanel.add(
             privateCheckBox,
             GridConstraints(
                 1,
@@ -167,8 +148,8 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         )
 
         unmarkPrivateCheckBox = JCheckBox("Unmark Private (Gerrit 2.15+)")
-        unmarkPrivateCheckBox!!.toolTipText = "Unmark an existing change private."
-        indentedSettingPanel!!.add(
+        unmarkPrivateCheckBox.toolTipText = "Unmark an existing change private."
+        indentedSettingPanel.add(
             unmarkPrivateCheckBox,
             GridConstraints(
                 2,
@@ -186,8 +167,8 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         )
 
         wipCheckBox = JCheckBox("WIP (Work-In-Progress Changes) (Gerrit 2.15+)")
-        wipCheckBox!!.toolTipText = "Push a wip change or to turn a change to wip."
-        indentedSettingPanel!!.add(
+        wipCheckBox.toolTipText = "Push a wip change or to turn a change to wip."
+        indentedSettingPanel.add(
             wipCheckBox,
             GridConstraints(
                 3,
@@ -205,8 +186,8 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         )
 
         readyCheckBox = JCheckBox("Ready (Gerrit 2.15+)")
-        readyCheckBox!!.toolTipText = "Mark a Work-In-Progress Change as Ready for review"
-        indentedSettingPanel!!.add(
+        readyCheckBox.toolTipText = "Mark a Work-In-Progress Change as Ready for review"
+        indentedSettingPanel.add(
             readyCheckBox,
             GridConstraints(
                 4,
@@ -224,9 +205,9 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         )
 
         publishDraftCommentsCheckBox = JCheckBox("Publish Draft Comments (Gerrit 2.15+)")
-        publishDraftCommentsCheckBox!!.toolTipText =
+        publishDraftCommentsCheckBox.toolTipText =
             "If you have draft comments on the change(s) that are updated by the push, the publish-comments option will cause them to be published."
-        indentedSettingPanel!!.add(
+        indentedSettingPanel.add(
             publishDraftCommentsCheckBox,
             GridConstraints(
                 1,
@@ -244,8 +225,8 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         )
 
         draftChangeCheckBox = JCheckBox("Draft-Change (Gerrit older than 2.15)")
-        draftChangeCheckBox!!.toolTipText = "Publish change as draft (reviewers cannot submit change)."
-        indentedSettingPanel!!.add(
+        draftChangeCheckBox.toolTipText = "Publish change as draft (reviewers cannot submit change)."
+        indentedSettingPanel.add(
             draftChangeCheckBox,
             GridConstraints(
                 2,
@@ -263,11 +244,11 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
         )
 
         submitChangeCheckBox = JCheckBox("Submit Change")
-        submitChangeCheckBox!!.toolTipText =
+        submitChangeCheckBox.toolTipText =
             "Changes can be directly submitted on push. This is primarily useful for " +
                     "teams that don't want to do code review but want to use Gerrit’s submit strategies to handle " +
                     "contention on busy branches. Using submit creates a change and submits it immediately, if the caller " + "has submit permission."
-        indentedSettingPanel!!.add(
+        indentedSettingPanel.add(
             submitChangeCheckBox,
             GridConstraints(
                 3,
@@ -334,7 +315,7 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
     }
 
     private fun addTextField(label: String, toolTipText: String, row: Int): JTextField {
-        indentedSettingPanel!!.add(
+        indentedSettingPanel.add(
             JLabel(label),
             GridConstraints(
                 row, 0, 1, 1,
@@ -348,7 +329,7 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
 
         val textField = JTextField()
         textField.toolTipText = toolTipText
-        indentedSettingPanel!!.add(
+        indentedSettingPanel.add(
             textField,
             GridConstraints(
                 row, 1, 1, 1,
@@ -364,112 +345,107 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
 
     private fun addChangeListener() {
         val gerritPushChangeListener = ChangeActionListener()
-        pushToGerritCheckBox!!.addActionListener(gerritPushChangeListener)
-        privateCheckBox!!.addActionListener(gerritPushChangeListener)
-        unmarkPrivateCheckBox!!.addActionListener(gerritPushChangeListener)
-        wipCheckBox!!.addActionListener(gerritPushChangeListener)
-        publishDraftCommentsCheckBox!!.addActionListener(gerritPushChangeListener)
-        draftChangeCheckBox!!.addActionListener(gerritPushChangeListener)
-        submitChangeCheckBox!!.addActionListener(gerritPushChangeListener)
-        readyCheckBox!!.addActionListener(gerritPushChangeListener)
+        pushToGerritCheckBox.addActionListener(gerritPushChangeListener)
+        privateCheckBox.addActionListener(gerritPushChangeListener)
+        unmarkPrivateCheckBox.addActionListener(gerritPushChangeListener)
+        wipCheckBox.addActionListener(gerritPushChangeListener)
+        publishDraftCommentsCheckBox.addActionListener(gerritPushChangeListener)
+        draftChangeCheckBox.addActionListener(gerritPushChangeListener)
+        submitChangeCheckBox.addActionListener(gerritPushChangeListener)
+        readyCheckBox.addActionListener(gerritPushChangeListener)
 
         val gerritPushTextChangeListener = ChangeTextActionListener()
-        branchTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
-        topicTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
-        hashTagTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
-        patchsetDescriptionTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
-        reviewersTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
-        ccTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
+        branchTextField.document.addDocumentListener(gerritPushTextChangeListener)
+        topicTextField.document.addDocumentListener(gerritPushTextChangeListener)
+        hashTagTextField.document.addDocumentListener(gerritPushTextChangeListener)
+        patchsetDescriptionTextField.document.addDocumentListener(gerritPushTextChangeListener)
+        reviewersTextField.document.addDocumentListener(gerritPushTextChangeListener)
+        ccTextField.document.addDocumentListener(gerritPushTextChangeListener)
     }
 
     private val ref: String
         get() {
-            var ref = "%s"
-            if (pushToGerritCheckBox!!.isSelected) {
-                ref = if (draftChangeCheckBox!!.isSelected) {
-                    "refs/drafts/"
-                } else {
-                    "refs/for/"
-                }
-                ref += if (!branchTextField!!.text.isEmpty()) {
-                    branchTextField!!.text
-                } else {
-                    "%s"
-                }
-                val gerritSpecs: MutableList<String?> = Lists.newArrayList()
-                if (privateCheckBox!!.isSelected) {
-                    gerritSpecs.add("private")
-                } else if (unmarkPrivateCheckBox!!.isSelected) {
-                    gerritSpecs.add("remove-private")
-                }
-                if (wipCheckBox!!.isSelected) {
-                    gerritSpecs.add("wip")
-                } else if (readyCheckBox!!.isSelected) {
-                    gerritSpecs.add("ready")
-                }
-                if (publishDraftCommentsCheckBox!!.isSelected) {
-                    gerritSpecs.add("publish-comments")
-                }
-                if (submitChangeCheckBox!!.isSelected) {
-                    gerritSpecs.add("submit")
-                }
-                if (!topicTextField!!.text.isEmpty()) {
-                    gerritSpecs.add("topic=" + topicTextField!!.text)
-                }
-                if (!hashTagTextField!!.text.isEmpty()) {
-                    gerritSpecs.add("hashtag=" + hashTagTextField!!.text)
-                }
-                if (!patchsetDescriptionTextField!!.text.isEmpty()) {
-                    gerritSpecs.add(
-                        "m=" + UrlUtils.encodePatchSetDescription(
-                            patchsetDescriptionTextField!!.text
-                        )
-                    )
-                }
-                handleCommaSeparatedUserNames(gerritSpecs, reviewersTextField, "r")
-                handleCommaSeparatedUserNames(gerritSpecs, ccTextField, "cc")
-                val gerritSpec = Joiner.on(',').join(gerritSpecs)
-                if (!Strings.isNullOrEmpty(gerritSpec)) {
-                    ref += "%%$gerritSpec"
-                }
+            if (!pushToGerritCheckBox.isSelected) return "%s"
+            val ref = StringBuilder()
+            ref.append(if (draftChangeCheckBox.isSelected) {
+                "refs/drafts/"
+            } else {
+                "refs/for/"
+            })
+            ref.append(branchTextField.text.ifEmpty { "%s" })
+            val gerritSpecs: MutableList<String?> = mutableListOf()
+            if (privateCheckBox.isSelected) {
+                gerritSpecs.add("private")
+            } else if (unmarkPrivateCheckBox.isSelected) {
+                gerritSpecs.add("remove-private")
             }
-            return ref
+            if (wipCheckBox.isSelected) {
+                gerritSpecs.add("wip")
+            } else if (readyCheckBox.isSelected) {
+                gerritSpecs.add("ready")
+            }
+            if (publishDraftCommentsCheckBox.isSelected) {
+                gerritSpecs.add("publish-comments")
+            }
+            if (submitChangeCheckBox.isSelected) {
+                gerritSpecs.add("submit")
+            }
+            if (topicTextField.text.isNotEmpty()) {
+                gerritSpecs.add("topic=" + topicTextField.text)
+            }
+            if (hashTagTextField.text.isNotEmpty()) {
+                gerritSpecs.add("hashtag=" + hashTagTextField.text)
+            }
+            if (patchsetDescriptionTextField.text.isNotEmpty()) {
+                gerritSpecs.add(
+                    "m=" + UrlUtils.encodePatchSetDescription(
+                        patchsetDescriptionTextField.text
+                    )
+                )
+            }
+            handleCommaSeparatedUserNames(gerritSpecs, reviewersTextField, "r")
+            handleCommaSeparatedUserNames(gerritSpecs, ccTextField, "cc")
+            val gerritSpec = gerritSpecs.joinToString(",")
+            if (gerritSpec.isNotEmpty()) {
+                ref.append("%%$gerritSpec")
+            }
+            return ref.toString()
         }
 
     private fun handleExclusiveCheckBoxes() {
-        privateCheckBox!!.isEnabled = !unmarkPrivateCheckBox!!.isSelected
-        unmarkPrivateCheckBox!!.isEnabled = !privateCheckBox!!.isSelected
-        wipCheckBox!!.isEnabled = !readyCheckBox!!.isSelected
-        readyCheckBox!!.isEnabled = !wipCheckBox!!.isSelected
+        privateCheckBox.isEnabled = !unmarkPrivateCheckBox.isSelected
+        unmarkPrivateCheckBox.isEnabled = !privateCheckBox.isSelected
+        wipCheckBox.isEnabled = !readyCheckBox.isSelected
+        readyCheckBox.isEnabled = !wipCheckBox.isSelected
     }
 
     private fun handleCommaSeparatedUserNames(
         gerritSpecs: MutableList<String?>,
-        textField: JTextField?,
+        textField: JTextField,
         option: String
     ) {
-        val items = COMMA_SPLITTER.split(
-            textField!!.text
-        )
+        val items = textField.text.splitToSequence(",").map(String::trim).filter(String::isNotEmpty)
         for (item in items) {
             gerritSpecs.add("$option=$item")
         }
     }
 
     private fun initDestinationBranch() {
+        val ref = ref
         for ((key, value) in gerritPushTargetPanels) {
             key.initBranch(String.format(ref, value), pushToGerritByDefault)
         }
     }
 
     private fun updateDestinationBranch() {
+        val ref = ref
         for ((key, value) in gerritPushTargetPanels) {
             key.updateBranch(String.format(ref, value))
         }
     }
 
     private fun setSettingsEnabled(enabled: Boolean) {
-        UIUtil.setEnabled(indentedSettingPanel!!, enabled, true)
+        UIUtil.setEnabled(indentedSettingPanel, enabled, true)
         if (enabled) {
             handleExclusiveCheckBoxes()
         }
@@ -511,12 +487,11 @@ class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, priva
      */
     private inner class SettingsStateActionListener : ActionListener {
         override fun actionPerformed(e: ActionEvent) {
-            setSettingsEnabled(pushToGerritCheckBox!!.isSelected)
+            setSettingsEnabled(pushToGerritCheckBox.isSelected)
         }
     }
 
     companion object {
-        private val COMMA_SPLITTER: Splitter = Splitter.on(',').trimResults().omitEmptyStrings()
         private const val GITREVIEW_FILENAME = ".gitreview"
     }
 }

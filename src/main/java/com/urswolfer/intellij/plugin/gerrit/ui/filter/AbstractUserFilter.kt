@@ -15,8 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-import com.google.common.base.Optional
-import com.google.common.collect.*
 import com.google.inject.Inject
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -62,19 +60,11 @@ abstract class AbstractUserFilter : AbstractChangesFilter() {
 
     override val searchQueryPart: String?
         get() {
-            val value = value
-            if (value != null && value.forQuery.isPresent) {
-                var queryValue = value.forQuery.get()
-                queryValue = FulltextFilter.specialEncodeFulltextQuery(queryValue)
-                return "$queryField:$queryValue"
-            } else {
-                return null
-            }
+            val query = value?.forQuery ?: return null
+            return "$queryField:${FulltextFilter.specialEncodeFulltextQuery(query)}"
         }
 
-    private class User(var label: String, forQuery: String?) {
-        var forQuery: Optional<String> = Optional.fromNullable(forQuery)
-    }
+    private class User(var label: String, var forQuery: String?)
 
     inner class UserPopupAction(private val project: Project?, labelText: String) : BasePopupAction(labelText) {
         init {

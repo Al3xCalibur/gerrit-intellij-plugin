@@ -15,7 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.rest
 
-import com.google.common.collect.Iterables
 import com.google.common.collect.Lists
 import com.google.gerrit.extensions.api.changes.Changes
 import com.google.gerrit.extensions.common.ChangeInfo
@@ -30,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock
 class LoadChangesProxy(
     private val queryRequest: Changes.QueryRequest,
     private val gerritUtil: GerritUtil,
-    private val project: Project?
+    private val project: Project
 ) {
     private var sortkey: String? = null
     private var hasMore = true
@@ -48,8 +47,8 @@ class LoadChangesProxy(
             if (sortkey != null) {
                 myRequest.withSortkey(sortkey)
             }
-            val myConsumer: Consumer<List<ChangeInfo>> = Consumer<List<ChangeInfo>> { changeInfos ->
-                if (changeInfos != null && changeInfos.isNotEmpty()) {
+            val myConsumer = { changeInfos: List<ChangeInfo> ->
+                if (changeInfos.isNotEmpty()) {
                     val lastChangeInfo = changeInfos.last()
                     hasMore = lastChangeInfo._moreChanges != null && lastChangeInfo._moreChanges
                     sortkey = lastChangeInfo._sortkey

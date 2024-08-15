@@ -16,7 +16,7 @@
 package com.urswolfer.intellij.plugin.gerrit.ui
 
 import com.google.common.base.Strings
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.google.inject.Inject
 import com.intellij.openapi.components.ProjectComponent
 import com.intellij.openapi.project.Project
@@ -24,7 +24,8 @@ import com.intellij.util.Consumer
 import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
 import java.util.*
 
 /**
@@ -73,7 +74,7 @@ open class GerritUpdatesNotificationComponent : ProjectComponent, Consumer<List<
             return
         }
 
-        gerritUtil.getChangesToReview(project, this)
+        gerritUtil.getChangesToReview(project!!, ::consume)
     }
 
     override fun consume(changes: List<ChangeInfo>) {

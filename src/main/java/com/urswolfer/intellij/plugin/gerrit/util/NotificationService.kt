@@ -27,15 +27,15 @@ class NotificationService {
         notify(notificationBuilder.type(NotificationType.ERROR))
     }
 
-    fun notifyWarning(notificationBuilder: NotificationBuilder?) {
-        notify(notificationBuilder!!.type(NotificationType.WARNING))
+    fun notifyWarning(notificationBuilder: NotificationBuilder) {
+        notify(notificationBuilder.type(NotificationType.WARNING))
     }
 
-    fun notifyInformation(notificationBuilder: NotificationBuilder?) {
-        notify(notificationBuilder!!.type(NotificationType.INFORMATION))
+    fun notifyInformation(notificationBuilder: NotificationBuilder) {
+        notify(notificationBuilder.type(NotificationType.INFORMATION))
     }
 
-    fun notify(notificationBuilder: NotificationBuilder?) {
-        notificationBuilder!!.get().notify(notificationBuilder.project)
+    fun notify(notificationBuilder: NotificationBuilder) {
+        notificationBuilder.get().notify(notificationBuilder.project)
     }
 }

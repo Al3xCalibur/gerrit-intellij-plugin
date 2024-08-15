@@ -23,7 +23,6 @@ import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
 import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
 import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
-import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
@@ -34,21 +33,20 @@ class FetchAction @Inject constructor(
     private val notificationService: NotificationService,
     private val selectedRevisions: SelectedRevisions
 ) {
-    fun fetchChange(selectedChange: ChangeInfo, project: Project?, fetchCallback: Callable<Void?>?) {
+    fun fetchChange(selectedChange: ChangeInfo, project: Project, fetchCallback: () -> Unit) {
         gerritUtil.getChangeDetails(selectedChange._number, project) { changeDetails: ChangeInfo ->
             val gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeDetails.project)
             if (gitRepository == null) {
                 val notification = NotificationBuilder(
                     project, "Error",
-                    String.format("No repository found for Gerrit project: '%s'.", changeDetails.project)
+                    "No repository found for Gerrit project: '${changeDetails.project}'."
                 )
                 notificationService.notifyError(notification)
                 return@getChangeDetails
             }
 
-            val commitHash = selectedRevisions[changeDetails]
-
             val firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails) ?: return@getChangeDetails
+            val commitHash = selectedRevisions[changeDetails]!!
             gerritGitUtil.fetchChange(project, gitRepository, firstFetchInfo, commitHash, fetchCallback)
         }
     }

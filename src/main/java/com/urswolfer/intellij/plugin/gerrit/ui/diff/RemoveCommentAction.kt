@@ -35,16 +35,16 @@ class RemoveCommentAction(
     private val commentsDiffTool: CommentsDiffTool,
     private val editor: Editor,
     private val gerritUtil: GerritUtil,
-    private val changeInfo: ChangeInfo?,
+    private val changeInfo: ChangeInfo,
     private val comment: Comment,
     private val revisionId: String?,
     private val lineHighlighter: RangeHighlighter,
     private val rangeHighlighter: RangeHighlighter?
 ) : AnAction("Remove", "Remove selected comment", AllIcons.Actions.Cancel), DumbAware, UpdateInBackground {
     override fun actionPerformed(e: AnActionEvent) {
-        val project = e.getData(PlatformDataKeys.PROJECT)
+        val project = e.getData(PlatformDataKeys.PROJECT)!!
         gerritUtil.deleteDraftComment(
-            changeInfo!!._number, revisionId, comment.id, project
+            changeInfo._number, revisionId, comment.id, project
         ) { commentsDiffTool.removeComment(project, editor, lineHighlighter, rangeHighlighter) }
     }
 }

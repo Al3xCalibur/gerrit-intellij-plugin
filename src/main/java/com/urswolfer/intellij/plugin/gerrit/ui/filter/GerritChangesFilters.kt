@@ -15,9 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-import com.google.common.base.Joiner
-import com.google.common.collect.ImmutableList
-import com.google.common.collect.Iterables
 import com.google.inject.Inject
 import java.util.*
 
@@ -41,6 +38,6 @@ class GerritChangesFilters @Inject constructor(val filters: Set<AbstractChangesF
         get() = filters.mapNotNull { it.searchQueryPart }.joinToString("+")
 
     fun getFilters(): Iterable<ChangesFilter> {
-        return ImmutableList.copyOf<ChangesFilter>(filters)
+        return filters
     }
 }

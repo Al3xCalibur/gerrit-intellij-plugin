@@ -33,9 +33,9 @@ import javax.swing.JComponent
  */
 class LoginDialog(
     private val project: Project?,
-    private val gerritSettings: GerritSettings?,
-    private val gerritUtil: GerritUtil?,
-    private val log: Logger?
+    private val gerritSettings: GerritSettings,
+    private val gerritUtil: GerritUtil,
+    private val log: Logger
 ) : DialogWrapper(
     project, true
 ) {
@@ -43,7 +43,7 @@ class LoginDialog(
 
     // TODO: login must be merged with tasks server settings
     init {
-        loginPanel.host = gerritSettings!!.host
+        loginPanel.host = gerritSettings.host
         loginPanel.login = gerritSettings.login
         loginPanel.password = gerritSettings.password
         title = "Login to Gerrit"
@@ -73,9 +73,9 @@ class LoginDialog(
         val host = loginPanel.host
         val gerritAuthData = GerritAuthData.Basic(host, login, password)
         try {
-            val loggedSuccessfully = gerritUtil!!.checkCredentials(project, gerritAuthData)
+            val loggedSuccessfully = gerritUtil.checkCredentials(project, gerritAuthData)
             if (loggedSuccessfully) {
-                gerritSettings!!.setLogin(login)
+                gerritSettings.setLogin(login)
                 gerritSettings.setPassword(password)
                 gerritSettings.host = host!!
                 super.doOKAction()
@@ -83,8 +83,8 @@ class LoginDialog(
                 setErrorText("Can't login with given credentials")
             }
         } catch (e: Exception) {
-            log!!.info(e)
-            setErrorText("Can't login: " + gerritUtil!!.getErrorTextFromException(e))
+            log.info(e)
+            setErrorText("Can't login: " + gerritUtil.getErrorTextFromException(e))
         }
     }
 

@@ -15,7 +15,8 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.common.collect.*
+import com.google.common.collect.ImmutableMap
+import com.google.common.collect.Lists
 import com.google.inject.Inject
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionGroup
@@ -24,7 +25,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.UpdateInBackground
 import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
-import java.util.*
 import javax.swing.Icon
 
 /**

@@ -26,12 +26,10 @@ object TextToHtml {
      */
     @JvmStatic
     fun textToHtml(text: String): String {
-        var text = text
         if (!text.contains("\n")) {
             return text
         }
-        text = SafeHtml.Companion.asis(text).wikify()!!.asString()
-        text = text.replace("</p><p>", "</p><br/><p>") // otherwise paragraph breaks are not visible in IntelliJ...
-        return text
+        return SafeHtml.asis(text).wikify().asString()
+            .replace("</p><p>", "</p><br/><p>") // otherwise paragraph breaks are not visible in IntelliJ...
     }
 }

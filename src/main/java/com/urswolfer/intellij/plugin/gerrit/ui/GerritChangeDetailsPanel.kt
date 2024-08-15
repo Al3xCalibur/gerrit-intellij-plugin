@@ -62,7 +62,7 @@ class GerritChangeDetailsPanel(project: Project) {
         jEditorPane.preferredSize = Dimension(150, 100)
         jEditorPane.isEditable = false
         jEditorPane.isOpaque = false
-        jEditorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, java.lang.Boolean.TRUE)
+        jEditorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
         jEditorPane.addHyperlinkListener { e -> this@GerritChangeDetailsPanel.handleHyperlinkEvent(e) }
 
         val tableScroll = JBScrollPane(jEditorPane)

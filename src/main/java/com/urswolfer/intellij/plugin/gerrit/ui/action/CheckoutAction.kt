@@ -15,7 +15,7 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.google.inject.Inject
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -27,12 +27,12 @@ import com.intellij.openapi.vcs.VcsException
 import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
 import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
 import git4idea.GitVcs
 import git4idea.branch.GitBrancher
 import git4idea.validators.GitNewBranchNameValidator
 import java.util.*
-import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
@@ -57,24 +57,24 @@ open class CheckoutAction : AbstractChangeAction("Checkout", "Checkout change", 
         val project = anActionEvent.getRequiredData(PlatformDataKeys.PROJECT)
 
         getChangeDetail(selectedChange, project) { changeDetails: ChangeInfo ->
-            val fetchCallback = Callable<Void?> {
+            val fetchCallback = callback@{
                 val brancher = project.getService(GitBrancher::class.java)
                 val repository = gerritGitUtil.getRepositoryForGerritProject(project, changeDetails.project)
                 if (repository == null) {
                     val notification = NotificationBuilder(
                         project, "Error",
-                        String.format("No repository found for Gerrit project: '%s'.", changeDetails.project)
+                        "No repository found for Gerrit project: '${changeDetails.project}'."
                     )
                     notificationService.notifyError(notification)
-                    return@Callable null
+                    return@callback
                 }
                 val branchName = buildBranchName(changeDetails)
                 var checkedOutBranchName = branchName
-                val gitRepositories = listOf(repository)
-                val firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails)
-                val remote = gerritGitUtil.getRemoteForChange(project, repository, firstFetchInfo) ?: return@Callable null
+                val firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails)!!
+                val remote = gerritGitUtil.getRemoteForChange(project, repository, firstFetchInfo) ?: return@callback
                 var validName = false
                 var i = 0
+                val gitRepositories = listOf(repository)
                 val newBranchNameValidator = GitNewBranchNameValidator.newInstance(gitRepositories)
                 while (!validName && i < 100) { // do not loop endless - stop after 100 tries because most probably something went wrong
                     checkedOutBranchName = branchName + (if (i != 0) "_$i" else "")
@@ -99,7 +99,6 @@ open class CheckoutAction : AbstractChangeAction("Checkout", "Checkout change", 
                         })
                     }
                 }
-                null
             }
             fetchAction.fetchChange(selectedChange, project, fetchCallback)
         }

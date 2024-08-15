@@ -20,7 +20,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.urswolfer.gerrit.client.rest.GerritAuthData
 import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension
 import org.apache.http.HttpRequest
-import org.apache.http.HttpRequestInterceptor
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.protocol.HttpContext
 

@@ -16,13 +16,14 @@
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
 import com.google.gerrit.extensions.api.changes.SubmitInput
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.google.inject.Inject
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.urswolfer.intellij.plugin.gerrit.GerritModule
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
 
 /**
  * @author Urs Wolfer
@@ -40,15 +41,14 @@ open class SubmitAction : AbstractLoggedInChangeAction("Submit", "Submit Change"
         }
     }
 
-    private fun isSubmittable(selectedChange: ChangeInfo?): Boolean {
-        return java.lang.Boolean.FALSE == selectedChange!!.submittable
+    private fun isSubmittable(selectedChange: ChangeInfo): Boolean {
+        return !selectedChange.submittable
     }
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
-
         val selectedChange = getSelectedChange(anActionEvent) ?: return
 
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         val submitInput = SubmitInput()
         gerritUtil.postSubmit(selectedChange.id, submitInput, project) {
             val notification = NotificationBuilder(

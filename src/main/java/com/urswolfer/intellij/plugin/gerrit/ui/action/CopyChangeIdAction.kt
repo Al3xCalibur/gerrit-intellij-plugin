@@ -30,7 +30,7 @@ import java.awt.datatransfer.StringSelection
 // proxy class below is registered
 open class CopyChangeIdAction : AbstractChangeAction("Copy", "Copy Change-ID", AllIcons.Actions.Copy) {
     @Inject
-    private val notificationService: NotificationService? = null
+    private lateinit var notificationService: NotificationService
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
         val changeDetails = getSelectedChange(anActionEvent) ?: return
@@ -39,7 +39,7 @@ open class CopyChangeIdAction : AbstractChangeAction("Copy", "Copy Change-ID", A
         CopyPasteManager.getInstance().setContents(StringSelection(stringToCopy))
         val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
         val builder = NotificationBuilder(project, "Copy", "Copied Change-ID to clipboard.")
-        notificationService!!.notify(builder)
+        notificationService.notify(builder)
     }
 
     class Proxy : CopyChangeIdAction() {

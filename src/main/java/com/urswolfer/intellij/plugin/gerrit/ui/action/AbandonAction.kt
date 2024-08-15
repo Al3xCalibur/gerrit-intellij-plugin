@@ -17,7 +17,7 @@ package com.urswolfer.intellij.plugin.gerrit.ui.action
 
 import com.google.common.base.Strings
 import com.google.gerrit.extensions.api.changes.AbandonInput
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
@@ -48,16 +48,15 @@ open class AbandonAction : AbstractLoggedInChangeAction("Abandon", "Abandon Chan
             return true
         }
         val abandonAction = selectedChange.actions["abandon"]
-        return abandonAction != null && java.lang.Boolean.TRUE == abandonAction.enabled
+        return abandonAction != null && abandonAction.enabled
     }
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
-
         val selectedChange = getSelectedChange(anActionEvent) ?: return
 
         val abandonInput = AbandonInput()
 
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         val editor = SafeHtmlTextEditor(project)
         val dialog = AbandonDialog(project, true, editor)
         dialog.show()

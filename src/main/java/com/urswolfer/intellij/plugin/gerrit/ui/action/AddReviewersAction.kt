@@ -15,9 +15,10 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-import com.google.common.base.*
+import com.google.common.base.Strings
 import com.google.gerrit.extensions.api.GerritApi
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.SuggestedReviewerInfo
 import com.google.gerrit.extensions.restapi.RestApiException
 import com.google.inject.Inject
 import com.intellij.codeInsight.completion.CompletionResultSet
@@ -47,29 +48,28 @@ import javax.swing.JComponent
 open class AddReviewersAction :
     AbstractLoggedInChangeAction("Add Reviewers", "Add Reviewers to Change", AllIcons.Toolwindows.ToolWindowTodo) {
     @Inject
-    private val gerritApi: GerritRestApi? = null
+    private lateinit var gerritApi: GerritRestApi
 
     override fun actionPerformed(anActionEvent: AnActionEvent) {
-        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
-
         val selectedChange = getSelectedChange(anActionEvent) ?: return
 
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)!!
         val dialog = AddReviewersDialog(project, true, gerritApi, selectedChange)
         dialog.show()
         if (!dialog.isOK) {
             return
         }
         val content = dialog.reviewTextField.text
-        val reviewerNames = Splitter.on(',').omitEmptyStrings().trimResults().split(content)
+        val reviewerNames = content.splitToSequence(",").filter(String::isNotEmpty).map(String::trim)
         for (reviewerName in reviewerNames) {
             gerritUtil.addReviewer(selectedChange.id, reviewerName, project)
         }
     }
 
     private class AddReviewersDialog(
-        project: Project?,
+        project: Project,
         canBeParent: Boolean,
-        gerritApi: GerritApi?,
+        gerritApi: GerritApi,
         changeInfo: ChangeInfo?
     ) : DialogWrapper(project, canBeParent) {
         val reviewTextField: EditorTextField
@@ -84,14 +84,14 @@ open class AddReviewersAction :
             val editorFeatures: MutableSet<EditorCustomization?> = HashSet()
             editorFeatures.add(SoftWrapsEditorCustomization.ENABLED)
             editorFeatures.add(SpellCheckingEditorCustomizationProvider.getInstance().disabledCustomization)
-            reviewTextField = service.getEditorField(FileTypes.PLAIN_TEXT.language, project!!, editorFeatures)
+            reviewTextField = service.getEditorField(FileTypes.PLAIN_TEXT.language, project, editorFeatures)
             reviewTextField.minimumSize = Dimension(500, 100)
             buildTextFieldCompletion(gerritApi, changeInfo)
 
             init()
         }
 
-        private fun buildTextFieldCompletion(gerritApi: GerritApi?, changeInfo: ChangeInfo?) {
+        private fun buildTextFieldCompletion(gerritApi: GerritApi, changeInfo: ChangeInfo?) {
             val completionProvider: TextFieldCompletionProviderDumbAware =
                 object : TextFieldCompletionProviderDumbAware(true) {
                     override fun getPrefix(currentTextPrefix: String): String {
@@ -110,15 +110,15 @@ open class AddReviewersAction :
                             return
                         }
                         try {
-                            val suggestedReviewers = gerritApi!!.changes()
+                            val suggestedReviewers = gerritApi.changes()
                                 .id(changeInfo!!._number).suggestReviewers(prefix).withLimit(20).get()
                             if (result.isStopped) {
                                 return
                             }
                             for (suggestedReviewer in suggestedReviewers) {
                                 val lookupElementBuilderOptional = buildLookupElement(suggestedReviewer)
-                                if (lookupElementBuilderOptional.isPresent) {
-                                    result.addElement(lookupElementBuilderOptional.get())
+                                if (lookupElementBuilderOptional != null) {
+                                    result.addElement(lookupElementBuilderOptional)
                                 }
                             }
                         } catch (e: RestApiException) {
@@ -129,24 +129,24 @@ open class AddReviewersAction :
             completionProvider.apply(reviewTextField)
         }
 
-        private fun buildLookupElement(suggestedReviewer: SuggestedReviewerInfo): Optional<LookupElementBuilder> {
+        private fun buildLookupElement(suggestedReviewer: SuggestedReviewerInfo): LookupElementBuilder? {
             val presentableText: String
             val reviewerName: String
             if (suggestedReviewer.account != null) {
                 val account = suggestedReviewer.account
                 presentableText = if (account.email != null) {
-                    String.format("%s <%s>", account.name, account.email)
+                    "${account.name} <${account.email}>"
                 } else {
-                    String.format("%s (%s)", account.name, account._accountId)
+                    "${account.name} (${account._accountId})"
                 }
                 reviewerName = presentableText
             } else if (suggestedReviewer.group != null) {
-                presentableText = String.format("%s (group)", suggestedReviewer.group.name)
+                presentableText = "${suggestedReviewer.group.name} (group)"
                 reviewerName = suggestedReviewer.group.name
             } else {
-                return Optional.absent()
+                return null
             }
-            return Optional.of(LookupElementBuilder.create("$reviewerName,").withPresentableText(presentableText))
+            return LookupElementBuilder.create("$reviewerName,").withPresentableText(presentableText)
         }
 
         override fun createCenterPanel(): JComponent {

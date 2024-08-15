@@ -16,7 +16,8 @@
 package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
 import com.google.gerrit.extensions.client.Comment
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.CommentInfo
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.editor.Editor
@@ -26,7 +27,8 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.util.text.DateFormatUtil
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.CommentHelper
+import com.urswolfer.intellij.plugin.gerrit.util.TextToHtml
 import java.awt.event.MouseEvent
 import javax.swing.Icon
 
@@ -40,7 +42,7 @@ class CommentGutterIconRenderer(
     private val gerritSettings: GerritSettings,
     private val addCommentActionBuilder: AddCommentActionBuilder,
     private val fileComment: Comment,
-    private val changeInfo: ChangeInfo?,
+    private val changeInfo: ChangeInfo,
     private val revisionId: String?,
     private val lineHighlighter: RangeHighlighter,
     private val rangeHighlighter: RangeHighlighter?
@@ -96,12 +98,11 @@ class CommentGutterIconRenderer(
     private fun createPopupMenuActionGroup(): DefaultActionGroup {
         val actionGroup = DefaultActionGroup()
         if (isNewCommentFromMyself) {
-            val commentAction = addCommentActionBuilder
-                .create(commentsDiffTool, changeInfo, revisionId, editor, fileComment.path, fileComment.side)
-                .withText("Edit")
-                .withIcon(AllIcons.Toolwindows.ToolWindowMessages)
-                .update(fileComment, lineHighlighter, rangeHighlighter)
-                .get()
+            val commentAction = addCommentActionBuilder.create(
+                commentsDiffTool, changeInfo, revisionId, editor, fileComment.path, fileComment.side,
+                text = "Edit", icon = AllIcons.Toolwindows.ToolWindowMessages,
+                commentToEdit = fileComment, lineHighlighter = lineHighlighter, rangeHighlighter = rangeHighlighter
+            )
             actionGroup.add(commentAction)
 
             val removeCommentAction = RemoveCommentAction(
@@ -110,12 +111,10 @@ class CommentGutterIconRenderer(
             )
             actionGroup.add(removeCommentAction)
         } else {
-            val commentAction = addCommentActionBuilder
-                .create(commentsDiffTool, changeInfo, revisionId, editor, fileComment.path, fileComment.side)
-                .withText("Reply")
-                .withIcon(AllIcons.Actions.Back)
-                .reply(fileComment)
-                .get()
+            val commentAction = addCommentActionBuilder.create(
+                commentsDiffTool, changeInfo, revisionId, editor, fileComment.path, fileComment.side,
+                text = "Reply", icon = AllIcons.Actions.Back, replyToComment = fileComment
+            )
             actionGroup.add(commentAction)
 
             val commentDoneAction = CommentDoneAction(

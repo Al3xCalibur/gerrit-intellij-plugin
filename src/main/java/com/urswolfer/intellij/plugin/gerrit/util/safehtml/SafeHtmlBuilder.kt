@@ -18,14 +18,10 @@ package com.urswolfer.intellij.plugin.gerrit.util.safehtml
 /** Safely constructs a [SafeHtml], escaping user provided content.  */
 class SafeHtmlBuilder : SafeHtml() {
     private val dBuf = BufferDirect()
-    private var cb: Buffer
+    private var cb: Buffer = dBuf
 
     private var sBuf: BufferSealElement? = null
     private var att: AttMap? = null
-
-    init {
-        cb = dBuf
-    }
 
     val isEmpty: Boolean
         /** @return true if this builder has not had an append occur yet.
@@ -152,7 +148,7 @@ class SafeHtmlBuilder : SafeHtml() {
      * @return the attribute value, as a string. The empty string if the attribute has not been
      * assigned a value. The returned string is the raw (unescaped) value.
      */
-    fun getAttribute(name: String): String? {
+    fun getAttribute(name: String): String {
         assert(isAttributeName(name))
         assert(cb === sBuf)
         return att!!.get(name)
@@ -194,9 +190,9 @@ class SafeHtmlBuilder : SafeHtml() {
      * @param value additional value to append.
      */
     fun appendAttribute(name: String, value: String?): SafeHtmlBuilder {
-        if (value != null && !value.isEmpty()) {
+        if (!value.isNullOrEmpty()) {
             val e = getAttribute(name)
-            return setAttribute(name, if (!e!!.isEmpty()) "$e $value" else value)
+            return setAttribute(name, if (e.isNotEmpty()) "$e $value" else value)
         }
         return this
     }
@@ -375,8 +371,8 @@ class SafeHtmlBuilder : SafeHtml() {
         private val impl: Impl = ClientImpl()
 
         private fun escapeCS(b: SafeHtmlBuilder, `in`: CharSequence) {
-            for (i in 0 until `in`.length) {
-                b.append(`in`[i])
+            for (element in `in`) {
+                b.append(element)
             }
         }
 

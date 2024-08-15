@@ -15,9 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit
 
-import com.google.common.base.Optional
-import com.google.common.collect.Iterables
-import com.google.common.collect.Maps
 import com.google.gerrit.extensions.common.ChangeInfo
 import java.util.*
 
@@ -27,20 +24,20 @@ import java.util.*
  * @author Thomas Forrer
  */
 class SelectedRevisions : Observable() {
-    private val map: MutableMap<String?, String?> = Maps.newHashMap()
+    private val map: MutableMap<String, String?> = mutableMapOf()
 
     /**
      * @return the selected revision for the provided changeId, or null if the current revision was selected.
      */
-    operator fun get(changeId: String?): String? {
+    operator fun get(changeId: String): String? {
         return map[changeId]
     }
 
     /**
      * @return the selected revision for the provided change info object
      */
-    operator fun get(changeInfo: ChangeInfo?): String? {
-        var currentRevision = changeInfo!!.currentRevision
+    operator fun get(changeInfo: ChangeInfo): String? {
+        var currentRevision = changeInfo.currentRevision
         if (currentRevision == null && changeInfo.revisions != null) {
             // don't know why with some changes currentRevision is not set,
             // the revisions map however is usually populated
@@ -52,7 +49,7 @@ class SelectedRevisions : Observable() {
         return get(changeInfo.id) ?: currentRevision
     }
 
-    operator fun set(changeId: String?, revisionHash: String?) {
+    operator fun set(changeId: String, revisionHash: String?) {
         map[changeId] = revisionHash
         setChanged()
         notifyObservers(changeId)

@@ -15,14 +15,14 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
-import com.google.common.base.Optional
-import com.google.common.base.Predicate
-import com.google.common.base.Predicates
-import com.google.common.collect.*
+import com.google.common.collect.Lists
+import com.google.common.collect.Ordering
 import com.google.common.primitives.Longs
 import com.google.gerrit.extensions.client.Comment
 import com.google.gerrit.extensions.client.Side
-import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.CommentInfo
+import com.google.gerrit.extensions.common.RevisionInfo
 import com.google.inject.Inject
 import com.intellij.codeInsight.highlighting.HighlightManager
 import com.intellij.diff.DiffContext
@@ -44,7 +44,8 @@ import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vcs.changes.*
+import com.intellij.openapi.vcs.changes.Change
+import com.intellij.openapi.vcs.changes.ChangesUtil
 import com.intellij.openapi.vcs.changes.actions.diff.ChangeDiffRequestProducer
 import com.intellij.ui.JBColor
 import com.intellij.ui.PopupHandler
@@ -52,7 +53,8 @@ import com.urswolfer.intellij.plugin.gerrit.GerritModule
 import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
 import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
-import com.urswolfer.intellij.plugin.gerrit.util.*
+import com.urswolfer.intellij.plugin.gerrit.util.GerritUserDataKeys
+import com.urswolfer.intellij.plugin.gerrit.util.PathUtils
 
 /**
  * @author Urs Wolfer
@@ -107,7 +109,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
         editor1: EditorEx?,
         editor2: EditorEx,
         change: Change,
-        project: Project?,
+        project: Project,
         changeInfo: ChangeInfo,
         selectedRevisionId: String?,
         baseRevision: Pair<String, RevisionInfo>?
@@ -119,7 +121,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
         addCommentAction(editor1, editor2, relativeFilePath, changeInfo, selectedRevisionId, baseRevision)
 
         gerritUtil.getComments(
-            changeInfo._number, selectedRevisionId, project, true, true
+            changeInfo._number, selectedRevisionId, project, includePublishedComments = true, includeDraftComments = true
         ) { comments ->
             val fileComments = comments[relativeFilePath]
             if (fileComments != null) {
@@ -136,7 +138,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
                         editor1,
                         relativeFilePath,
                         selectedRevisionId,
-                        fileComments.filter { x -> !REVISION_COMMENT(x) },
+                        fileComments.filterNot(REVISION_COMMENT),
                         changeInfo,
                         project
                     )
@@ -146,7 +148,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
 
         if (baseRevision != null) {
             gerritUtil.getComments(
-                changeInfo._number, baseRevision.first, project, true, true
+                changeInfo._number, baseRevision.first, project, includePublishedComments = true, includeDraftComments = true
             ) { comments ->
                 val fileComments = comments[relativeFilePath]
                 if (fileComments != null) {
@@ -169,7 +171,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
     }
 
     private fun addCommentAction(
-        editor1: EditorEx?, editor2: EditorEx, filePath: String, changeInfo: ChangeInfo?,
+        editor1: EditorEx?, editor2: EditorEx, filePath: String, changeInfo: ChangeInfo,
         selectedRevisionId: String?, baseRevision: Pair<String, RevisionInfo>?
     ) {
         if (baseRevision != null) {
@@ -183,18 +185,17 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
     private fun addCommentActionToEditor(
         editor: Editor?,
         filePath: String,
-        changeInfo: ChangeInfo?,
+        changeInfo: ChangeInfo,
         revisionId: String?,
         commentSide: Side
     ) {
         if (editor == null) return
 
         val group = DefaultActionGroup()
-        val addCommentAction = addCommentActionBuilder
-            .create(this, changeInfo, revisionId, editor, filePath, commentSide)
-            .withText("Add Comment")
-            .withIcon(AllIcons.Toolwindows.ToolWindowMessages)
-            .get()
+        val addCommentAction = addCommentActionBuilder.create(
+            this, changeInfo, revisionId, editor, filePath, commentSide,
+            text = "Add Comment", icon = AllIcons.Toolwindows.ToolWindowMessages
+        )
         addCommentAction.registerCustomShortcutSet(CustomShortcutSet.fromString("C"), editor.contentComponent)
         group.add(addCommentAction)
         PopupHandler.installPopupHandler(editor.contentComponent, group, "GerritCommentDiffPopup")
@@ -205,7 +206,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
         filePath: String,
         revisionId: String?,
         fileComments: Iterable<CommentInfo>,
-        changeInfo: ChangeInfo?,
+        changeInfo: ChangeInfo,
         project: Project?
     ) {
         for (fileComment in fileComments) {
@@ -216,7 +217,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
 
     open fun addComment(
         editor: Editor?,
-        changeInfo: ChangeInfo?,
+        changeInfo: ChangeInfo,
         revisionId: String?,
         project: Project?,
         comment: Comment
@@ -250,11 +251,11 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
 
     open fun removeComment(
         project: Project?,
-        editor: Editor?,
+        editor: Editor,
         lineHighlighter: RangeHighlighter?,
         rangeHighlighter: RangeHighlighter?
     ) {
-        editor!!.markupModel.removeHighlighter(lineHighlighter!!)
+        editor.markupModel.removeHighlighter(lineHighlighter!!)
         lineHighlighter.dispose()
 
         if (rangeHighlighter != null) {
@@ -270,9 +271,9 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
         val changeInfo = diffContext.getUserData<ChangeInfo?>(GerritUserDataKeys.CHANGE)!!
         val baseRevision =
             diffContext.getUserData<Pair<String, RevisionInfo>?>(GerritUserDataKeys.BASE_REVISION)
-        val selectedRevisionId = if (changeInfo != null) selectedRevisions[changeInfo] else null
+        val selectedRevisionId = selectedRevisions[changeInfo]
         val change = diffRequest.getUserData(ChangeDiffRequestProducer.CHANGE_KEY)!!
-        handleComments(editor1, editor2, change, diffContext.project, changeInfo, selectedRevisionId, baseRevision)
+        handleComments(editor1, editor2, change, diffContext.project!!, changeInfo, selectedRevisionId, baseRevision)
     }
 
     private inner class SimpleCommentsDiffViewer(context: DiffContext, request: DiffRequest) :
@@ -292,10 +293,10 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
     }
 
     private fun getRelativeOrAbsolutePath(
-        project: Project?,
+        project: Project,
         absoluteFilePath: String,
         changeInfo: ChangeInfo
-    ): String? {
+    ): String {
         return pathUtils.getRelativeOrAbsolutePath(project, absoluteFilePath, changeInfo.project)
     }
 
@@ -320,7 +321,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
 
         override fun addComment(
             editor: Editor?,
-            changeInfo: ChangeInfo?,
+            changeInfo: ChangeInfo,
             revisionId: String?,
             project: Project?,
             comment: Comment
@@ -330,7 +331,7 @@ open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
 
         override fun removeComment(
             project: Project?,
-            editor: Editor?,
+            editor: Editor,
             lineHighlighter: RangeHighlighter?,
             rangeHighlighter: RangeHighlighter?
         ) {

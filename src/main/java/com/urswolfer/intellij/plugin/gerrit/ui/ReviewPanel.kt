@@ -23,7 +23,7 @@ import javax.swing.*
 /**
  * @author Urs Wolfer
  */
-class ReviewPanel(project: Project?) : JPanel(BorderLayout()) {
+class ReviewPanel(project: Project) : JPanel(BorderLayout()) {
     private val messageField: EditorTextField
     private val notifyCheckBox: JCheckBox
     private val submitCheckBox: JCheckBox

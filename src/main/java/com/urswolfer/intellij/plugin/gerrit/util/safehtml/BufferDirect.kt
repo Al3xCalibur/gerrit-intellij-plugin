@@ -19,7 +19,7 @@ internal class BufferDirect : Buffer {
     private val strbuf = StringBuilder()
 
     val isEmpty: Boolean
-        get() = strbuf.length == 0
+        get() = strbuf.isEmpty()
 
     override fun append(v: Boolean) {
         strbuf.append(v)

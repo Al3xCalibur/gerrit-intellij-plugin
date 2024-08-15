@@ -15,7 +15,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit.ui
 
-import com.google.common.base.Optional
 import com.google.common.collect.*
 import com.google.gerrit.extensions.common.*
 import com.google.inject.Inject
@@ -132,7 +131,7 @@ class RepositoryChangesBrowserProvider @Inject constructor(
             }
 
             val revisions = selectedChange!!.revisions
-            val revisionId = selectedRevisions[selectedChange]
+            val revisionId = selectedRevisions[selectedChange!!]!!
             val currentRevision = revisions[revisionId]
             val revisionFetcher =
                 RevisionFetcher(gerritUtil, gerritGitUtil, notificationService, project, gitRepository)
@@ -162,14 +161,13 @@ class RepositoryChangesBrowserProvider @Inject constructor(
                                 "for the currently used Git repository."
                     )
                     notificationService.notifyError(notification)
-                    return@fetch null
+                    return@fetch
                 }
 
                 ApplicationManager.getApplication().invokeLater {
                     viewer.setEmptyText("No changes")
-                    setChangesToDisplay(Lists.newArrayList(totalDiff))
+                    setChangesToDisplay(totalDiff)
                 }
-                null
             }
         }
 
@@ -178,7 +176,7 @@ class RepositoryChangesBrowserProvider @Inject constructor(
             // -1: limit; log exactly this commit; git show would do this job also, but there is no api in GitHistoryUtils
             // ("git show hash" <-> "git log hash -1")
             val history = GitHistoryUtils.history(project, gitRepositoryRoot, revisionId, "-1")
-            return Iterables.getOnlyElement(history)
+            return history.first()
         }
 
         val changeNodeDecorator: ChangeNodeDecorator

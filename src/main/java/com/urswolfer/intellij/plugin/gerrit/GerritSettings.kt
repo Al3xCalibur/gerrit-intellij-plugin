@@ -16,7 +16,6 @@
  */
 package com.urswolfer.intellij.plugin.gerrit
 
-import com.google.common.base.Optional
 import com.google.common.base.Strings
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
