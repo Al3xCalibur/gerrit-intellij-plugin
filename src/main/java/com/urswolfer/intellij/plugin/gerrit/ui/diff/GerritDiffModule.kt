@@ -13,19 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
-package com.urswolfer.intellij.plugin.gerrit.ui.diff;
-
-import com.google.inject.AbstractModule;
+import com.google.inject.AbstractModule
 
 /**
  * @author Thomas Forrer
  */
-public class GerritDiffModule extends AbstractModule {
-    @Override
-    protected void configure() {
-        bind(AddCommentActionBuilder.class);
-        bind(CommentsDiffTool.class);
-        bind(CommentBalloonBuilder.class);
+class GerritDiffModule : AbstractModule() {
+    override fun configure() {
+        bind(AddCommentActionBuilder::class.java)
+        bind(CommentsDiffTool::class.java)
+        bind(CommentBalloonBuilder::class.java)
     }
 }

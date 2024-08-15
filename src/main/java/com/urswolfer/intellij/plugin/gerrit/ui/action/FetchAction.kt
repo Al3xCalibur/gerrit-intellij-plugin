@@ -13,55 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.FetchInfo;
-import com.google.inject.Inject;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-import git4idea.repo.GitRepository;
-
-import java.util.concurrent.Callable;
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.inject.Inject
+import com.intellij.openapi.project.Project
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
+import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
  */
-public class FetchAction {
-    @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private GerritGitUtil gerritGitUtil;
-    @Inject
-    private NotificationService notificationService;
-    @Inject
-    private SelectedRevisions selectedRevisions;
-
-    public void fetchChange(ChangeInfo selectedChange, final Project project, final Callable<Void> fetchCallback) {
-        gerritUtil.getChangeDetails(selectedChange._number, project, changeDetails -> {
-            Optional<GitRepository> gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeDetails.project);
-            if (!gitRepository.isPresent()) {
-                NotificationBuilder notification = new NotificationBuilder(project, "Error",
-                    String.format("No repository found for Gerrit project: '%s'.", changeDetails.project));
-                notificationService.notifyError(notification);
-                return;
+class FetchAction @Inject constructor(
+    private val gerritUtil: GerritUtil,
+    private val gerritGitUtil: GerritGitUtil,
+    private val notificationService: NotificationService,
+    private val selectedRevisions: SelectedRevisions
+) {
+    fun fetchChange(selectedChange: ChangeInfo, project: Project?, fetchCallback: Callable<Void?>?) {
+        gerritUtil.getChangeDetails(selectedChange._number, project) { changeDetails: ChangeInfo ->
+            val gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeDetails.project)
+            if (gitRepository == null) {
+                val notification = NotificationBuilder(
+                    project, "Error",
+                    String.format("No repository found for Gerrit project: '%s'.", changeDetails.project)
+                )
+                notificationService.notifyError(notification)
+                return@getChangeDetails
             }
 
-            String commitHash = selectedRevisions.get(changeDetails);
+            val commitHash = selectedRevisions[changeDetails]
 
-            FetchInfo firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails);
-            if (firstFetchInfo == null) {
-                return;
-            }
-            gerritGitUtil.fetchChange(project, gitRepository.get(), firstFetchInfo, commitHash, fetchCallback);
-        });
+            val firstFetchInfo = gerritUtil.getFirstFetchInfo(changeDetails) ?: return@getChangeDetails
+            gerritGitUtil.fetchChange(project, gitRepository, firstFetchInfo, commitHash, fetchCallback)
+        }
     }
-
 }

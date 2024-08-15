@@ -13,176 +13,153 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.common.base.Strings;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.openapi.components.ProjectComponent;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import com.google.common.base.Strings
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.openapi.components.ProjectComponent
+import com.intellij.openapi.project.Project
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import java.util.*
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class GerritUpdatesNotificationComponent implements ProjectComponent, Consumer<List<ChangeInfo>> {
+// proxy class below is registered
+open class GerritUpdatesNotificationComponent : ProjectComponent, Consumer<List<ChangeInfo>> {
     @Inject
-    private GerritUtil gerritUtil;
+    private lateinit var gerritUtil: GerritUtil
     @Inject
-    private GerritSettings gerritSettings;
+    private lateinit var gerritSettings: GerritSettings
     @Inject
-    private NotificationService notificationService;
+    private lateinit var notificationService: NotificationService
 
-    private Timer timer;
-    private Set<String> notifiedChanges = new HashSet<String>();
-    private Project project;
+    private var timer: Timer? = null
+    private val notifiedChanges: MutableSet<String> = HashSet()
+    private var project: Project? = null
 
-    @Override
-    public void projectOpened() {
-        handleNotification();
-        setupRefreshTask();
+    override fun projectOpened() {
+        handleNotification()
+        setupRefreshTask()
     }
 
-    @Override
-    public void projectClosed() {
-        cancelPendingNotificationTasks();
-        notifiedChanges.clear();
+    override fun projectClosed() {
+        cancelPendingNotificationTasks()
+        notifiedChanges.clear()
     }
 
-    @NotNull
-    @Override
-    public String getComponentName() {
-        return "GerritUpdatesNotificationComponent";
+    override fun getComponentName(): String {
+        return "GerritUpdatesNotificationComponent"
     }
 
-    public void handleConfigurationChange() {
-        cancelPendingNotificationTasks();
-        setupRefreshTask();
+    fun handleConfigurationChange() {
+        cancelPendingNotificationTasks()
+        setupRefreshTask()
     }
 
-    public void handleNotification() {
-        if (!gerritSettings.getReviewNotifications()) {
-            return;
+    fun handleNotification() {
+        if (!gerritSettings.reviewNotifications) {
+            return
         }
 
-        if (Strings.isNullOrEmpty(gerritSettings.getHost())
-                || Strings.isNullOrEmpty(gerritSettings.getLogin())) {
-            return;
+        if (Strings.isNullOrEmpty(gerritSettings.host)
+            || Strings.isNullOrEmpty(gerritSettings.login)
+        ) {
+            return
         }
 
-        gerritUtil.getChangesToReview(project, this);
+        gerritUtil.getChangesToReview(project, this)
     }
 
-    @Override
-    public void consume(List<ChangeInfo> changes) {
-        boolean newChange = false;
-        for (ChangeInfo change : changes) {
+    override fun consume(changes: List<ChangeInfo>) {
+        var newChange = false
+        for (change in changes) {
             if (!notifiedChanges.contains(change.id)) {
-                newChange = true;
-                break;
+                newChange = true
+                break
             }
         }
         if (newChange) {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("<ul>");
-            for (ChangeInfo change : changes) {
+            val stringBuilder = StringBuilder()
+            stringBuilder.append("<ul>")
+            for (change in changes) {
                 stringBuilder
-                        .append("<li>")
-                        .append(!notifiedChanges.contains(change.changeId) ? "<strong>NEW: </strong>" : "")
-                        .append(change.project)
-                        .append(": ")
-                        .append(change.subject)
-                        .append(" (Owner: ").append(change.owner.name).append(')')
-                        .append("</li>");
+                    .append("<li>")
+                    .append(if (!notifiedChanges.contains(change.changeId)) "<strong>NEW: </strong>" else "")
+                    .append(change.project)
+                    .append(": ")
+                    .append(change.subject)
+                    .append(" (Owner: ").append(change.owner.name).append(')')
+                    .append("</li>")
 
-                notifiedChanges.add(change.id);
+                notifiedChanges.add(change.id)
             }
-            stringBuilder.append("</ul>");
-            NotificationBuilder notification = new NotificationBuilder(
-                    project,
-                    "Gerrit Changes waiting for my review",
-                    stringBuilder.toString()
-            );
-            notificationService.notifyInformation(notification);
+            stringBuilder.append("</ul>")
+            val notification = NotificationBuilder(
+                project,
+                "Gerrit Changes waiting for my review",
+                stringBuilder.toString()
+            )
+            notificationService.notifyInformation(notification)
         }
     }
 
-    private void cancelPendingNotificationTasks() {
+    private fun cancelPendingNotificationTasks() {
+        val timer = timer
         if (timer != null) {
-            timer.cancel();
-            timer = null;
+            timer.cancel()
+            this.timer = null
         }
     }
 
-    private void setupRefreshTask() {
-        long refreshTimeout = gerritSettings.getRefreshTimeout();
-        if (gerritSettings.getAutomaticRefresh() && refreshTimeout > 0) {
-            if (timer == null) {
-                timer = new Timer();
-            }
-            timer.schedule(new CheckReviewTask(), refreshTimeout * 60 * 1000);
-        }
+    private fun setupRefreshTask() {
+        val refreshTimeout = gerritSettings.refreshTimeout.toLong()
+        if (!gerritSettings.automaticRefresh || refreshTimeout <= 0) return
+        val timer = timer ?: Timer().also { this.timer = it }
+        timer.schedule(CheckReviewTask(), refreshTimeout * 60 * 1000)
     }
 
-    public void setProject(Project project) {
-        this.project = project;
+    open fun setProject(project: Project?) {
+        this.project = project
     }
 
-    private class CheckReviewTask extends TimerTask {
-        @Override
-        public void run() {
-            handleNotification();
+    private inner class CheckReviewTask : TimerTask() {
+        override fun run() {
+            handleNotification()
 
-            long refreshTimeout = gerritSettings.getRefreshTimeout();
-            if (gerritSettings.getAutomaticRefresh() && refreshTimeout > 0) {
-                timer.schedule(new CheckReviewTask(), refreshTimeout * 60 * 1000);
+            val refreshTimeout = gerritSettings.refreshTimeout.toLong()
+            if (gerritSettings.automaticRefresh && refreshTimeout > 0) {
+                timer!!.schedule(CheckReviewTask(), refreshTimeout * 60 * 1000)
             }
         }
     }
 
-    @SuppressWarnings("UnusedDeclaration")
-    private static class Proxy extends GerritUpdatesNotificationComponent {
+    private class Proxy(project: Project?) : GerritUpdatesNotificationComponent() {
+        private val delegate: GerritUpdatesNotificationComponent = GerritModule.getInstance<GerritUpdatesNotificationComponent>()
 
-        private final GerritUpdatesNotificationComponent delegate;
-
-        public Proxy(Project project) {
-            delegate = GerritModule.getInstance(GerritUpdatesNotificationComponent.class);
-            delegate.setProject(project);
+        init {
+            delegate.setProject(project)
         }
 
-        @Override
-        public void projectOpened() {
-            delegate.projectOpened();
+        override fun projectOpened() {
+            delegate.projectOpened()
         }
 
-        @Override
-        public void projectClosed() {
-            delegate.projectClosed();
+        override fun projectClosed() {
+            delegate.projectClosed()
         }
 
-        @NotNull
-        @Override
-        public String getComponentName() {
-            return delegate.getComponentName();
+        override fun getComponentName(): String {
+            return delegate.componentName
         }
 
-        @Override
-        public void setProject(Project project) {
-            delegate.setProject(project);
+        override fun setProject(project: Project?) {
+            delegate.setProject(project)
         }
     }
 }

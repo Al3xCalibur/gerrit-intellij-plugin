@@ -13,162 +13,141 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gerrit.extensions.api.changes.NotifyHandling;
-import com.google.gerrit.extensions.api.changes.ReviewInput;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.CommentInfo;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.ui.ReviewDialog;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-
-import javax.swing.*;
-import java.util.List;
-import java.util.Map;
+import com.google.common.base.Joiner
+import com.google.common.base.Strings
+import com.google.common.collect.Lists
+import com.google.common.collect.Maps
+import com.google.gerrit.extensions.api.changes.NotifyHandling
+import com.google.gerrit.extensions.api.changes.ReviewInput
+import com.google.gerrit.extensions.api.changes.ReviewInput.CommentInput
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.CommentInfo
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.ui.ReviewDialog
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
+import javax.swing.Icon
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // needs to be setup with correct parameters (ctor); see corresponding factory
-public class ReviewAction extends AbstractLoggedInChangeAction {
-    private final SelectedRevisions selectedRevisions;
-    private final SubmitAction submitAction;
-    private final NotificationService notificationService;
-
-    private String label;
-    private int rating;
-    private boolean showDialog;
-
-    public ReviewAction(String label,
-                        int rating,
-                        Icon icon,
-                        boolean showDialog,
-                        SelectedRevisions selectedRevisions,
-                        GerritUtil gerritUtil,
-                        SubmitAction submitAction,
-                        NotificationService notificationService,
-                        GerritSettings gerritSettings) {
-        super((rating > 0 ? "+" : "") + rating + (showDialog ? "..." : ""), "Review Change with " + rating + (showDialog ? " adding Comment" : ""), icon);
-        this.label = label;
-        this.rating = rating;
-        this.showDialog = showDialog;
-        this.gerritSettings = gerritSettings;
-        this.gerritUtil = gerritUtil;
-        this.selectedRevisions = selectedRevisions;
-        this.submitAction = submitAction;
-        this.notificationService = notificationService;
+// needs to be setup with correct parameters (ctor); see corresponding factory
+class ReviewAction(
+    private val label: String,
+    private val rating: Int,
+    icon: Icon?,
+    private val showDialog: Boolean,
+    private val selectedRevisions: SelectedRevisions,
+    gerritUtil: GerritUtil,
+    private val submitAction: SubmitAction,
+    private val notificationService: NotificationService,
+    gerritSettings: GerritSettings
+) : AbstractLoggedInChangeAction(
+    (if (rating > 0) "+" else "") + rating + (if (showDialog) "..." else ""),
+    "Review Change with " + rating + (if (showDialog) " adding Comment" else ""),
+    icon
+) {
+    init {
+        this.gerritSettings = gerritSettings
+        this.gerritUtil = gerritUtil
     }
 
-    @Override
-    public void actionPerformed(final AnActionEvent anActionEvent) {
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
 
-        Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
+        val changeDetails = getSelectedChange(anActionEvent) ?: return
+
+        gerritUtil.getComments(
+            changeDetails._number, selectedRevisions[changeDetails], project, false, true
+        ) { draftComments: Map<String, List<CommentInfo>> ->
+            val reviewInput = ReviewInput()
+            reviewInput.label(label, rating)
+
+            for ((key, value) in draftComments) {
+                for (commentInfo in value) {
+                    addComment(reviewInput, key, commentInfo)
+                }
+            }
+
+            var submitChange = false
+            if (showDialog) {
+                val dialog = ReviewDialog(project)
+                dialog.show()
+                if (!dialog.isOK) {
+                    return@getComments
+                }
+                val message = dialog.reviewPanel.message
+                if (!Strings.isNullOrEmpty(message)) {
+                    reviewInput.message = message
+                }
+                submitChange = dialog.reviewPanel.submitChange
+
+                if (!dialog.reviewPanel.doNotify) {
+                    reviewInput.notify = NotifyHandling.NONE
+                }
+            }
+
+            val finalSubmitChange = submitChange
+            gerritUtil.postReview(
+                changeDetails.id,
+                selectedRevisions[changeDetails],
+                reviewInput,
+                project
+            ) {
+                val notification = NotificationBuilder(
+                    project, "Review posted",
+                    buildSuccessMessage(changeDetails, reviewInput)
+                )
+                    .hideBalloon()
+                notificationService.notifyInformation(notification)
+                if (finalSubmitChange) {
+                    submitAction.actionPerformed(anActionEvent)
+                }
+            }
         }
-        final ChangeInfo changeDetails = selectedChange.get();
-        gerritUtil.getComments(changeDetails._number, selectedRevisions.get(changeDetails), project, false, true,
-            draftComments -> {
-                final ReviewInput reviewInput = new ReviewInput();
-                reviewInput.label(label, rating);
-
-                for (Map.Entry<String, List<CommentInfo>> entry : draftComments.entrySet()) {
-                    for (CommentInfo commentInfo : entry.getValue()) {
-                        addComment(reviewInput, entry.getKey(), commentInfo);
-                    }
-                }
-
-                boolean submitChange = false;
-                if (showDialog) {
-                    final ReviewDialog dialog = new ReviewDialog(project);
-                    dialog.show();
-                    if (!dialog.isOK()) {
-                        return;
-                    }
-                    final String message = dialog.getReviewPanel().getMessage();
-                    if (!Strings.isNullOrEmpty(message)) {
-                        reviewInput.message = message;
-                    }
-                    submitChange = dialog.getReviewPanel().getSubmitChange();
-
-                    if (!dialog.getReviewPanel().getDoNotify()) {
-                        reviewInput.notify = NotifyHandling.NONE;
-                    }
-                }
-
-                final boolean finalSubmitChange = submitChange;
-                gerritUtil.postReview(changeDetails.id,
-                        selectedRevisions.get(changeDetails),
-                        reviewInput,
-                        project,
-                        new Consumer<Void>() {
-                            @Override
-                            public void consume(Void result) {
-                                NotificationBuilder notification = new NotificationBuilder(
-                                        project, "Review posted",
-                                        buildSuccessMessage(changeDetails, reviewInput))
-                                        .hideBalloon();
-                                notificationService.notifyInformation(notification);
-                                if (finalSubmitChange) {
-                                    submitAction.actionPerformed(anActionEvent);
-                                }
-                            }
-                        }
-                );
-            });
     }
 
-    private void addComment(ReviewInput reviewInput, String path, CommentInfo comment) {
-        List<ReviewInput.CommentInput> commentInputs;
-        Map<String, List<ReviewInput.CommentInput>> comments = reviewInput.comments;
+    private fun addComment(reviewInput: ReviewInput, path: String, comment: CommentInfo) {
+        val commentInputs: MutableList<CommentInput?>
+        var comments = reviewInput.comments
         if (comments == null) {
-            comments = Maps.newHashMap();
-            reviewInput.comments = comments;
+            comments = Maps.newHashMap()
+            reviewInput.comments = comments
         }
         if (comments.containsKey(path)) {
-            commentInputs = comments.get(path);
+            commentInputs = comments[path]!!
         } else {
-            commentInputs = Lists.newArrayList();
-            comments.put(path, commentInputs);
+            commentInputs = Lists.newArrayList()
+            comments[path] = commentInputs
         }
 
-        ReviewInput.CommentInput commentInput = new ReviewInput.CommentInput();
-        commentInput.id = comment.id;
-        commentInput.path = comment.path;
-        commentInput.side = comment.side;
-        commentInput.line = comment.line;
-        commentInput.range = comment.range;
-        commentInput.inReplyTo = comment.inReplyTo;
-        commentInput.updated = comment.updated;
-        commentInput.message = comment.message;
+        val commentInput = CommentInput()
+        commentInput.id = comment.id
+        commentInput.path = comment.path
+        commentInput.side = comment.side
+        commentInput.line = comment.line
+        commentInput.range = comment.range
+        commentInput.inReplyTo = comment.inReplyTo
+        commentInput.updated = comment.updated
+        commentInput.message = comment.message
 
-        commentInputs.add(commentInput);
+        commentInputs.add(commentInput)
     }
 
-    private String buildSuccessMessage(ChangeInfo changeInfo, ReviewInput reviewInput) {
-        StringBuilder stringBuilder = new StringBuilder(
-                String.format("Review for change '%s' posted", changeInfo.subject)
-        );
-        if (!reviewInput.labels.isEmpty()) {
-            stringBuilder.append(": ");
-            stringBuilder.append(Joiner.on(", ").withKeyValueSeparator(": ").join(reviewInput.labels));
+    private fun buildSuccessMessage(changeInfo: ChangeInfo, reviewInput: ReviewInput): String {
+        val stringBuilder = StringBuilder(
+            String.format("Review for change '%s' posted", changeInfo.subject)
+        )
+        if (reviewInput.labels.isNotEmpty()) {
+            stringBuilder.append(": ")
+            stringBuilder.append(Joiner.on(", ").withKeyValueSeparator(": ").join(reviewInput.labels))
         }
-        return stringBuilder.toString();
+        return stringBuilder.toString()
     }
-
 }

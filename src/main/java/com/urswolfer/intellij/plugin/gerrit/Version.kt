@@ -13,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit
 
-package com.urswolfer.intellij.plugin.gerrit;
-
-import com.intellij.ide.plugins.PluginManagerCore;
-import com.intellij.openapi.extensions.PluginId;
+import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.openapi.extensions.PluginId
 
 /**
  * @author Urs Wolfer
  */
-public final class Version {
+object Version {
+    private val PLUGIN_VERSION: String =
+        PluginManagerCore.getPlugin(PluginId.getId("com.urswolfer.intellij.plugin.gerrit"))!!
+            .version
 
-    private static final String PLUGIN_VERSION = PluginManagerCore.getPlugin(PluginId.getId("com.urswolfer.intellij.plugin.gerrit")).getVersion();
-
-    private Version() {}
-    public static String get() {
-        return PLUGIN_VERSION;
+    fun get(): String {
+        return PLUGIN_VERSION
     }
-
 }

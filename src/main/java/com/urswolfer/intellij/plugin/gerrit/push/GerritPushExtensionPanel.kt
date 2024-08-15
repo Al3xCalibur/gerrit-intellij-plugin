@@ -13,392 +13,510 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.push
 
-package com.urswolfer.intellij.plugin.gerrit.push;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.intellij.ide.DataManager;
-import com.intellij.openapi.actionSystem.CommonDataKeys;
-import com.intellij.openapi.actionSystem.DataContext;
-import com.intellij.openapi.project.Project;
-import com.intellij.uiDesigner.core.GridConstraints;
-import com.intellij.uiDesigner.core.GridLayoutManager;
-import com.intellij.util.ui.UIUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.UrlUtils;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import com.google.common.base.Joiner
+import com.google.common.base.Optional
+import com.google.common.base.Splitter
+import com.google.common.base.Strings
+import com.google.common.collect.Lists
+import com.google.common.collect.Maps
+import com.intellij.ide.DataManager
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.uiDesigner.core.GridConstraints
+import com.intellij.uiDesigner.core.GridLayoutManager
+import com.intellij.util.ui.UIUtil
+import com.urswolfer.intellij.plugin.gerrit.util.UrlUtils
+import java.awt.Dimension
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
+import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
+import java.util.*
+import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 
 /**
  * @author Urs Wolfer
  */
-public class GerritPushExtensionPanel extends JPanel {
+class GerritPushExtensionPanel(private val pushToGerritByDefault: Boolean, private val forceDefaultBranch: Boolean) :
+    JPanel() {
+    private var indentedSettingPanel: JPanel? = null
 
-    private static final Splitter COMMA_SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
-    private static final String GITREVIEW_FILENAME = ".gitreview";
+    private var pushToGerritCheckBox: JCheckBox? = null
+    private var privateCheckBox: JCheckBox? = null
+    private var unmarkPrivateCheckBox: JCheckBox? = null
+    private var publishDraftCommentsCheckBox: JCheckBox? = null
+    private var wipCheckBox: JCheckBox? = null
+    private var draftChangeCheckBox: JCheckBox? = null
+    private var submitChangeCheckBox: JCheckBox? = null
+    private var readyCheckBox: JCheckBox? = null
+    private var branchTextField: JTextField? = null
+    private var topicTextField: JTextField? = null
+    private var hashTagTextField: JTextField? = null
+    private var reviewersTextField: JTextField? = null
+    private var ccTextField: JTextField? = null
+    private var patchsetDescriptionTextField: JTextField? = null
+    private val gerritPushTargetPanels: MutableMap<GerritPushTargetPanel, String?> = Maps.newHashMap()
+    private var initialized = false
 
-    private final boolean pushToGerritByDefault;
-    private final boolean forceDefaultBranch;
+    init {
+        createLayout()
 
-    private JPanel indentedSettingPanel;
+        pushToGerritCheckBox!!.isSelected = pushToGerritByDefault
+        pushToGerritCheckBox!!.addActionListener(SettingsStateActionListener())
+        setSettingsEnabled(pushToGerritCheckBox!!.isSelected)
 
-    private JCheckBox pushToGerritCheckBox;
-    private JCheckBox privateCheckBox;
-    private JCheckBox unmarkPrivateCheckBox;
-    private JCheckBox publishDraftCommentsCheckBox;
-    private JCheckBox wipCheckBox;
-    private JCheckBox draftChangeCheckBox;
-    private JCheckBox submitChangeCheckBox;
-    private JCheckBox readyCheckBox;
-    private JTextField branchTextField;
-    private JTextField topicTextField;
-    private JTextField hashTagTextField;
-    private JTextField reviewersTextField;
-    private JTextField ccTextField;
-    private JTextField patchsetDescriptionTextField;
-    private final Map<GerritPushTargetPanel, String> gerritPushTargetPanels = Maps.newHashMap();
-    private boolean initialized = false;
-
-    public GerritPushExtensionPanel(boolean pushToGerritByDefault, boolean forceDefaultBranch) {
-        this.pushToGerritByDefault = pushToGerritByDefault;
-        this.forceDefaultBranch = forceDefaultBranch;
-        createLayout();
-
-        pushToGerritCheckBox.setSelected(pushToGerritByDefault);
-        pushToGerritCheckBox.addActionListener(new SettingsStateActionListener());
-        setSettingsEnabled(pushToGerritCheckBox.isSelected());
-
-        addChangeListener();
+        addChangeListener()
     }
 
-    public void registerGerritPushTargetPanel(GerritPushTargetPanel gerritPushTargetPanel, String branch) {
+    fun registerGerritPushTargetPanel(gerritPushTargetPanel: GerritPushTargetPanel, branch: String?) {
+        var branch = branch
         if (initialized) { // a new dialog gets initialized; start again
-            initialized = false;
-            gerritPushTargetPanels.clear();
+            initialized = false
+            gerritPushTargetPanels.clear()
         }
 
         if (branch != null) {
-            branch = branch.replaceAll("^refs/(for|drafts)/", "");
-            branch = branch.replaceAll("%.*$", "");
+            branch = branch.replace("^refs/(for|drafts)/".toRegex(), "")
+            branch = branch.replace("%.*$".toRegex(), "")
         }
 
-        gerritPushTargetPanels.put(gerritPushTargetPanel, branch);
+        gerritPushTargetPanels[gerritPushTargetPanel] = branch
     }
 
-    public void initialized() {
-        initialized = true;
+    fun initialized() {
+        initialized = true
 
         // force a deferred update (changes are monitored only after full construction of dialog)
-        SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater {
             if (forceDefaultBranch) {
-                Optional<String> gitReviewBranchName = getGitReviewBranchName();
-                if(gitReviewBranchName.isPresent()) {
-                    branchTextField.setText(gitReviewBranchName.get());
+                val gitReviewBranchName = gitReviewBranchName
+                if (gitReviewBranchName.isPresent) {
+                    branchTextField!!.text = gitReviewBranchName.get()
                 }
-            } else if (gerritPushTargetPanels.size() == 1) {
-                String branchName = gerritPushTargetPanels.values().iterator().next();
-                Optional<String> gitReviewBranchName = getGitReviewBranchName();
-                branchTextField.setText(gitReviewBranchName.or(branchName));
+            } else if (gerritPushTargetPanels.size == 1) {
+                val branchName = gerritPushTargetPanels.values.iterator().next()
+                val gitReviewBranchName = gitReviewBranchName
+                branchTextField!!.text = gitReviewBranchName.or(branchName)
             }
-            initDestinationBranch();
-        });
+            initDestinationBranch()
+        }
     }
 
-    private Optional<String> getGitReviewBranchName() {
-        Optional<String> branchName = Optional.absent();
+    private val gitReviewBranchName: Optional<String?>
+        get() {
+            var branchName = Optional.absent<String?>()
 
-        DataContext dataContext = DataManager.getInstance().getDataContext(this);
-        Optional<Project> openedProject = Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext));
+            val dataContext = DataManager.getInstance().getDataContext(this)
+            val openedProject = Optional.fromNullable(CommonDataKeys.PROJECT.getData(dataContext))
 
-        if (openedProject.isPresent()) {
-            String gitReviewFilePath = Joiner.on(File.separator).join(
-                openedProject.get().getBasePath(), GITREVIEW_FILENAME);
+            if (openedProject.isPresent) {
+                val gitReviewFilePath = Joiner.on(File.separator).join(
+                    openedProject.get().basePath, GITREVIEW_FILENAME
+                )
 
-            File gitReviewFile = new File(gitReviewFilePath);
-            if (gitReviewFile.exists() && gitReviewFile.isFile()) {
-                try (FileInputStream fileInputStream = new FileInputStream(gitReviewFilePath)) {
-
-                    Properties properties = new Properties();
-                    properties.load(fileInputStream);
-                    branchName = Optional.fromNullable(Strings.emptyToNull(properties.getProperty("defaultbranch")));
-                } catch (IOException e) {
+                val gitReviewFile = File(gitReviewFilePath)
+                if (gitReviewFile.exists() && gitReviewFile.isFile) {
+                    try {
+                        FileInputStream(gitReviewFilePath).use { fileInputStream ->
+                            val properties = Properties()
+                            properties.load(fileInputStream)
+                            branchName =
+                                Optional.fromNullable(Strings.emptyToNull(properties.getProperty("defaultbranch")))
+                        }
+                    } catch (e: IOException) {
+                        //no need to handle as branch name is already absent and ready to be returned
+                    }
                     //no need to handle as branch name is already absent and ready to be returned
                 }
-                //no need to handle as branch name is already absent and ready to be returned
             }
+
+            return branchName
         }
 
-        return branchName;
-    }
+    private fun createLayout() {
+        val mainPanel = JPanel()
+        mainPanel.alignmentX = LEFT_ALIGNMENT
+        mainPanel.layout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
 
-    private void createLayout() {
-        JPanel mainPanel = new JPanel();
-        mainPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        pushToGerritCheckBox = JCheckBox("Push to Gerrit")
+        mainPanel.add(pushToGerritCheckBox)
 
-        pushToGerritCheckBox = new JCheckBox("Push to Gerrit");
-        mainPanel.add(pushToGerritCheckBox);
+        indentedSettingPanel = JPanel(GridLayoutManager(13, 2))
 
-        indentedSettingPanel = new JPanel(new GridLayoutManager(13, 2));
+        privateCheckBox = JCheckBox("Private (Gerrit 2.15+)")
+        privateCheckBox!!.toolTipText = "Push a private change or to turn a change private."
+        indentedSettingPanel!!.add(
+            privateCheckBox,
+            GridConstraints(
+                1,
+                0,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
-        privateCheckBox = new JCheckBox("Private (Gerrit 2.15+)");
-        privateCheckBox.setToolTipText("Push a private change or to turn a change private.");
-        indentedSettingPanel.add(privateCheckBox, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
+        unmarkPrivateCheckBox = JCheckBox("Unmark Private (Gerrit 2.15+)")
+        unmarkPrivateCheckBox!!.toolTipText = "Unmark an existing change private."
+        indentedSettingPanel!!.add(
+            unmarkPrivateCheckBox,
+            GridConstraints(
+                2,
+                0,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
-        unmarkPrivateCheckBox = new JCheckBox("Unmark Private (Gerrit 2.15+)");
-        unmarkPrivateCheckBox.setToolTipText("Unmark an existing change private.");
-        indentedSettingPanel.add(unmarkPrivateCheckBox, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
+        wipCheckBox = JCheckBox("WIP (Work-In-Progress Changes) (Gerrit 2.15+)")
+        wipCheckBox!!.toolTipText = "Push a wip change or to turn a change to wip."
+        indentedSettingPanel!!.add(
+            wipCheckBox,
+            GridConstraints(
+                3,
+                0,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
-        wipCheckBox = new JCheckBox("WIP (Work-In-Progress Changes) (Gerrit 2.15+)");
-        wipCheckBox.setToolTipText("Push a wip change or to turn a change to wip.");
-        indentedSettingPanel.add(wipCheckBox, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
+        readyCheckBox = JCheckBox("Ready (Gerrit 2.15+)")
+        readyCheckBox!!.toolTipText = "Mark a Work-In-Progress Change as Ready for review"
+        indentedSettingPanel!!.add(
+            readyCheckBox,
+            GridConstraints(
+                4,
+                0,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
-        readyCheckBox = new JCheckBox("Ready (Gerrit 2.15+)");
-        readyCheckBox.setToolTipText("Mark a Work-In-Progress Change as Ready for review");
-        indentedSettingPanel.add(readyCheckBox, new GridConstraints(4, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
+        publishDraftCommentsCheckBox = JCheckBox("Publish Draft Comments (Gerrit 2.15+)")
+        publishDraftCommentsCheckBox!!.toolTipText =
+            "If you have draft comments on the change(s) that are updated by the push, the publish-comments option will cause them to be published."
+        indentedSettingPanel!!.add(
+            publishDraftCommentsCheckBox,
+            GridConstraints(
+                1,
+                1,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
-        publishDraftCommentsCheckBox = new JCheckBox("Publish Draft Comments (Gerrit 2.15+)");
-        publishDraftCommentsCheckBox.setToolTipText("If you have draft comments on the change(s) that are updated by the push, the publish-comments option will cause them to be published.");
-        indentedSettingPanel.add(publishDraftCommentsCheckBox, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
+        draftChangeCheckBox = JCheckBox("Draft-Change (Gerrit older than 2.15)")
+        draftChangeCheckBox!!.toolTipText = "Publish change as draft (reviewers cannot submit change)."
+        indentedSettingPanel!!.add(
+            draftChangeCheckBox,
+            GridConstraints(
+                2,
+                1,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
-        draftChangeCheckBox = new JCheckBox("Draft-Change (Gerrit older than 2.15)");
-        draftChangeCheckBox.setToolTipText("Publish change as draft (reviewers cannot submit change).");
-        indentedSettingPanel.add(draftChangeCheckBox, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
-
-        submitChangeCheckBox = new JCheckBox("Submit Change");
-        submitChangeCheckBox.setToolTipText("Changes can be directly submitted on push. This is primarily useful for " +
-                "teams that don't want to do code review but want to use Gerrit’s submit strategies to handle " +
-                "contention on busy branches. Using submit creates a change and submits it immediately, if the caller " +
-                "has submit permission.");
-        indentedSettingPanel.add(submitChangeCheckBox, new GridConstraints(3, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
+        submitChangeCheckBox = JCheckBox("Submit Change")
+        submitChangeCheckBox!!.toolTipText =
+            "Changes can be directly submitted on push. This is primarily useful for " +
+                    "teams that don't want to do code review but want to use Gerrit’s submit strategies to handle " +
+                    "contention on busy branches. Using submit creates a change and submits it immediately, if the caller " + "has submit permission."
+        indentedSettingPanel!!.add(
+            submitChangeCheckBox,
+            GridConstraints(
+                3,
+                1,
+                1,
+                1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null,
+                null,
+                null
+            )
+        )
 
         branchTextField = addTextField(
-                "Branch:",
-                "The push destination branch.",
-                7);
+            "Branch:",
+            "The push destination branch.",
+            7
+        )
 
         topicTextField = addTextField(
-                "Topic:",
-                "A short topic associated with all of the changes in the same group, such as the local topic branch name.",
-                8);
+            "Topic:",
+            "A short topic associated with all of the changes in the same group, such as the local topic branch name.",
+            8
+        )
 
         hashTagTextField = addTextField(
-                "Hashtag (Gerrit 2.15+):",
-                "Include a hashtag associated with all of the changes in the same group.",
-                9);
+            "Hashtag (Gerrit 2.15+):",
+            "Include a hashtag associated with all of the changes in the same group.",
+            9
+        )
 
         patchsetDescriptionTextField = addTextField(
-                "Patch Set Description (Gerrit 3.4+):",
-                "A description of the patch set to be created. Intended to help guide reviewers as a change evolves. The description cannot be changed after the change is pushed.",
-                10);
+            "Patch Set Description (Gerrit 3.4+):",
+            "A description of the patch set to be created. Intended to help guide reviewers as a change evolves. The description cannot be changed after the change is pushed.",
+            10
+        )
 
         reviewersTextField = addTextField(
-                "Reviewers (user names, comma separated):",
-                "Users which will be added as reviewers.",
-                11);
+            "Reviewers (user names, comma separated):",
+            "Users which will be added as reviewers.",
+            11
+        )
 
         ccTextField = addTextField(
-                "CC (user names, comma separated):",
-                "Users which will receive carbon copies of the notification message.",
-                12);
+            "CC (user names, comma separated):",
+            "Users which will receive carbon copies of the notification message.",
+            12
+        )
 
-        final JPanel settingLayoutPanel = new JPanel();
-        settingLayoutPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        settingLayoutPanel.setLayout(new BoxLayout(settingLayoutPanel, BoxLayout.X_AXIS));
-        settingLayoutPanel.add(Box.createRigidArea(new Dimension(20, 0)));
-        settingLayoutPanel.add(indentedSettingPanel);
+        val settingLayoutPanel = JPanel()
+        settingLayoutPanel.alignmentX = LEFT_ALIGNMENT
+        settingLayoutPanel.layout = BoxLayout(settingLayoutPanel, BoxLayout.X_AXIS)
+        settingLayoutPanel.add(Box.createRigidArea(Dimension(20, 0)))
+        settingLayoutPanel.add(indentedSettingPanel)
 
-        mainPanel.add(settingLayoutPanel);
+        mainPanel.add(settingLayoutPanel)
 
-        setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-        add(mainPanel);
-        add(Box.createHorizontalGlue());
+        layout = BoxLayout(this, BoxLayout.X_AXIS)
+        add(mainPanel)
+        add(Box.createHorizontalGlue())
     }
 
-    private JTextField addTextField(String label, String toolTipText, int row) {
-        indentedSettingPanel.add(
-                new JLabel(label),
-                new GridConstraints(row, 0, 1, 1,
-                        GridConstraints.ANCHOR_WEST,
-                        GridConstraints.FILL_NONE,
-                        GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED,
-                        null, null, null)
-        );
+    private fun addTextField(label: String, toolTipText: String, row: Int): JTextField {
+        indentedSettingPanel!!.add(
+            JLabel(label),
+            GridConstraints(
+                row, 0, 1, 1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_CAN_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                null, null, null
+            )
+        )
 
-        JTextField textField = new JTextField();
-        textField.setToolTipText(toolTipText);
-        indentedSettingPanel.add(
-                textField,
-                new GridConstraints(row, 1, 1, 1,
-                        GridConstraints.ANCHOR_WEST,
-                        GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_WANT_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED,
-                        new Dimension(250, 0), null, null)
-        );
-        return textField;
+        val textField = JTextField()
+        textField.toolTipText = toolTipText
+        indentedSettingPanel!!.add(
+            textField,
+            GridConstraints(
+                row, 1, 1, 1,
+                GridConstraints.ANCHOR_WEST,
+                GridConstraints.FILL_HORIZONTAL,
+                GridConstraints.SIZEPOLICY_WANT_GROW,
+                GridConstraints.SIZEPOLICY_FIXED,
+                Dimension(250, 0), null, null
+            )
+        )
+        return textField
     }
 
-    private void addChangeListener() {
-        ChangeActionListener gerritPushChangeListener = new ChangeActionListener();
-        pushToGerritCheckBox.addActionListener(gerritPushChangeListener);
-        privateCheckBox.addActionListener(gerritPushChangeListener);
-        unmarkPrivateCheckBox.addActionListener(gerritPushChangeListener);
-        wipCheckBox.addActionListener(gerritPushChangeListener);
-        publishDraftCommentsCheckBox.addActionListener(gerritPushChangeListener);
-        draftChangeCheckBox.addActionListener(gerritPushChangeListener);
-        submitChangeCheckBox.addActionListener(gerritPushChangeListener);
-        readyCheckBox.addActionListener(gerritPushChangeListener);
+    private fun addChangeListener() {
+        val gerritPushChangeListener = ChangeActionListener()
+        pushToGerritCheckBox!!.addActionListener(gerritPushChangeListener)
+        privateCheckBox!!.addActionListener(gerritPushChangeListener)
+        unmarkPrivateCheckBox!!.addActionListener(gerritPushChangeListener)
+        wipCheckBox!!.addActionListener(gerritPushChangeListener)
+        publishDraftCommentsCheckBox!!.addActionListener(gerritPushChangeListener)
+        draftChangeCheckBox!!.addActionListener(gerritPushChangeListener)
+        submitChangeCheckBox!!.addActionListener(gerritPushChangeListener)
+        readyCheckBox!!.addActionListener(gerritPushChangeListener)
 
-        ChangeTextActionListener gerritPushTextChangeListener = new ChangeTextActionListener();
-        branchTextField.getDocument().addDocumentListener(gerritPushTextChangeListener);
-        topicTextField.getDocument().addDocumentListener(gerritPushTextChangeListener);
-        hashTagTextField.getDocument().addDocumentListener(gerritPushTextChangeListener);
-        patchsetDescriptionTextField.getDocument().addDocumentListener(gerritPushTextChangeListener);
-        reviewersTextField.getDocument().addDocumentListener(gerritPushTextChangeListener);
-        ccTextField.getDocument().addDocumentListener(gerritPushTextChangeListener);
+        val gerritPushTextChangeListener = ChangeTextActionListener()
+        branchTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
+        topicTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
+        hashTagTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
+        patchsetDescriptionTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
+        reviewersTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
+        ccTextField!!.document.addDocumentListener(gerritPushTextChangeListener)
     }
 
-    private String getRef() {
-        String ref = "%s";
-        if (pushToGerritCheckBox.isSelected()) {
-            if (draftChangeCheckBox.isSelected()) {
-                ref = "refs/drafts/";
-            } else {
-                ref = "refs/for/";
+    private val ref: String
+        get() {
+            var ref = "%s"
+            if (pushToGerritCheckBox!!.isSelected) {
+                ref = if (draftChangeCheckBox!!.isSelected) {
+                    "refs/drafts/"
+                } else {
+                    "refs/for/"
+                }
+                ref += if (!branchTextField!!.text.isEmpty()) {
+                    branchTextField!!.text
+                } else {
+                    "%s"
+                }
+                val gerritSpecs: MutableList<String?> = Lists.newArrayList()
+                if (privateCheckBox!!.isSelected) {
+                    gerritSpecs.add("private")
+                } else if (unmarkPrivateCheckBox!!.isSelected) {
+                    gerritSpecs.add("remove-private")
+                }
+                if (wipCheckBox!!.isSelected) {
+                    gerritSpecs.add("wip")
+                } else if (readyCheckBox!!.isSelected) {
+                    gerritSpecs.add("ready")
+                }
+                if (publishDraftCommentsCheckBox!!.isSelected) {
+                    gerritSpecs.add("publish-comments")
+                }
+                if (submitChangeCheckBox!!.isSelected) {
+                    gerritSpecs.add("submit")
+                }
+                if (!topicTextField!!.text.isEmpty()) {
+                    gerritSpecs.add("topic=" + topicTextField!!.text)
+                }
+                if (!hashTagTextField!!.text.isEmpty()) {
+                    gerritSpecs.add("hashtag=" + hashTagTextField!!.text)
+                }
+                if (!patchsetDescriptionTextField!!.text.isEmpty()) {
+                    gerritSpecs.add(
+                        "m=" + UrlUtils.encodePatchSetDescription(
+                            patchsetDescriptionTextField!!.text
+                        )
+                    )
+                }
+                handleCommaSeparatedUserNames(gerritSpecs, reviewersTextField, "r")
+                handleCommaSeparatedUserNames(gerritSpecs, ccTextField, "cc")
+                val gerritSpec = Joiner.on(',').join(gerritSpecs)
+                if (!Strings.isNullOrEmpty(gerritSpec)) {
+                    ref += "%%$gerritSpec"
+                }
             }
-            if (!branchTextField.getText().isEmpty()) {
-                ref += branchTextField.getText();
-            } else {
-                ref += "%s";
-            }
-            List<String> gerritSpecs = Lists.newArrayList();
-            if (privateCheckBox.isSelected()) {
-                gerritSpecs.add("private");
-            } else if (unmarkPrivateCheckBox.isSelected()) {
-                gerritSpecs.add("remove-private");
-            }
-            if (wipCheckBox.isSelected()) {
-                gerritSpecs.add("wip");
-            } else if (readyCheckBox.isSelected()) {
-                gerritSpecs.add("ready");
-            }
-            if (publishDraftCommentsCheckBox.isSelected()) {
-                gerritSpecs.add("publish-comments");
-            }
-            if (submitChangeCheckBox.isSelected()) {
-                gerritSpecs.add("submit");
-            }
-            if (!topicTextField.getText().isEmpty()) {
-                gerritSpecs.add("topic=" + topicTextField.getText());
-            }
-            if (!hashTagTextField.getText().isEmpty()) {
-                gerritSpecs.add("hashtag=" + hashTagTextField.getText());
-            }
-            if (!patchsetDescriptionTextField.getText().isEmpty()) {
-                gerritSpecs.add("m=" + UrlUtils.encodePatchSetDescription(patchsetDescriptionTextField.getText()));
-            }
-            handleCommaSeparatedUserNames(gerritSpecs, reviewersTextField, "r");
-            handleCommaSeparatedUserNames(gerritSpecs, ccTextField, "cc");
-            String gerritSpec = Joiner.on(',').join(gerritSpecs);
-            if (!Strings.isNullOrEmpty(gerritSpec)) {
-                ref += "%%" + gerritSpec;
-            }
+            return ref
         }
-        return ref;
+
+    private fun handleExclusiveCheckBoxes() {
+        privateCheckBox!!.isEnabled = !unmarkPrivateCheckBox!!.isSelected
+        unmarkPrivateCheckBox!!.isEnabled = !privateCheckBox!!.isSelected
+        wipCheckBox!!.isEnabled = !readyCheckBox!!.isSelected
+        readyCheckBox!!.isEnabled = !wipCheckBox!!.isSelected
     }
 
-    private void handleExclusiveCheckBoxes() {
-        privateCheckBox.setEnabled(!unmarkPrivateCheckBox.isSelected());
-        unmarkPrivateCheckBox.setEnabled(!privateCheckBox.isSelected());
-        wipCheckBox.setEnabled(!readyCheckBox.isSelected());
-        readyCheckBox.setEnabled(!wipCheckBox.isSelected());
-    }
-
-    private void handleCommaSeparatedUserNames(List<String> gerritSpecs, JTextField textField, String option) {
-        Iterable<String> items = COMMA_SPLITTER.split(textField.getText());
-        for (String item : items) {
-            gerritSpecs.add(option + '=' + item);
+    private fun handleCommaSeparatedUserNames(
+        gerritSpecs: MutableList<String?>,
+        textField: JTextField?,
+        option: String
+    ) {
+        val items = COMMA_SPLITTER.split(
+            textField!!.text
+        )
+        for (item in items) {
+            gerritSpecs.add("$option=$item")
         }
     }
 
-    private void initDestinationBranch() {
-        for (Map.Entry<GerritPushTargetPanel, String> entry : gerritPushTargetPanels.entrySet()) {
-            entry.getKey().initBranch(String.format(getRef(), entry.getValue()), pushToGerritByDefault);
+    private fun initDestinationBranch() {
+        for ((key, value) in gerritPushTargetPanels) {
+            key.initBranch(String.format(ref, value), pushToGerritByDefault)
         }
     }
 
-    private void updateDestinationBranch() {
-        for (Map.Entry<GerritPushTargetPanel, String> entry : gerritPushTargetPanels.entrySet()) {
-            entry.getKey().updateBranch(String.format(getRef(), entry.getValue()));
+    private fun updateDestinationBranch() {
+        for ((key, value) in gerritPushTargetPanels) {
+            key.updateBranch(String.format(ref, value))
         }
     }
 
-    private void setSettingsEnabled(boolean enabled) {
-        UIUtil.setEnabled(indentedSettingPanel, enabled, true);
+    private fun setSettingsEnabled(enabled: Boolean) {
+        UIUtil.setEnabled(indentedSettingPanel!!, enabled, true)
         if (enabled) {
-            handleExclusiveCheckBoxes();
+            handleExclusiveCheckBoxes()
         }
     }
 
     /**
      * Updates destination branch text field after every config change.
      */
-    private class ChangeActionListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            updateDestinationBranch();
-            handleExclusiveCheckBoxes();
+    private inner class ChangeActionListener : ActionListener {
+        override fun actionPerformed(e: ActionEvent) {
+            updateDestinationBranch()
+            handleExclusiveCheckBoxes()
         }
     }
 
     /**
      * Updates destination branch text field after every text-field config change.
      */
-    private class ChangeTextActionListener implements DocumentListener {
-        @Override
-        public void insertUpdate(DocumentEvent e) {
-            handleChange();
+    private inner class ChangeTextActionListener : DocumentListener {
+        override fun insertUpdate(e: DocumentEvent) {
+            handleChange()
         }
 
-        @Override
-        public void removeUpdate(DocumentEvent e) {
-            handleChange();
+        override fun removeUpdate(e: DocumentEvent) {
+            handleChange()
         }
 
-        @Override
-        public void changedUpdate(DocumentEvent e) {
-            handleChange();
+        override fun changedUpdate(e: DocumentEvent) {
+            handleChange()
         }
 
-        private void handleChange() {
-            updateDestinationBranch();
+        private fun handleChange() {
+            updateDestinationBranch()
         }
     }
 
     /**
      * Activates or deactivates settings according to checkbox.
      */
-    private class SettingsStateActionListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            setSettingsEnabled(pushToGerritCheckBox.isSelected());
+    private inner class SettingsStateActionListener : ActionListener {
+        override fun actionPerformed(e: ActionEvent) {
+            setSettingsEnabled(pushToGerritCheckBox!!.isSelected)
         }
+    }
+
+    companion object {
+        private val COMMA_SPLITTER: Splitter = Splitter.on(',').trimResults().omitEmptyStrings()
+        private const val GITREVIEW_FILENAME = ".gitreview"
     }
 }

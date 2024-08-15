@@ -11,55 +11,45 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package com.urswolfer.intellij.plugin.gerrit.util.safehtml;
+package com.urswolfer.intellij.plugin.gerrit.util.safehtml
 
 // based on: https://gerrit.googlesource.com/gerrit/+/master/gerrit-gwtexpui/src/main/java/com/google/gwtexpui/safehtml/client/
 
-final class BufferDirect implements Buffer {
-  private final StringBuilder strbuf = new StringBuilder();
+internal class BufferDirect : Buffer {
+    private val strbuf = StringBuilder()
 
-  boolean isEmpty() {
-    return strbuf.length() == 0;
-  }
+    val isEmpty: Boolean
+        get() = strbuf.length == 0
 
-  @Override
-  public void append(boolean v) {
-    strbuf.append(v);
-  }
+    override fun append(v: Boolean) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public void append(char v) {
-    strbuf.append(v);
-  }
+    override fun append(v: Char) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public void append(int v) {
-    strbuf.append(v);
-  }
+    override fun append(v: Int) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public void append(long v) {
-    strbuf.append(v);
-  }
+    override fun append(v: Long) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public void append(float v) {
-    strbuf.append(v);
-  }
+    override fun append(v: Float) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public void append(double v) {
-    strbuf.append(v);
-  }
+    override fun append(v: Double) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public void append(String v) {
-    strbuf.append(v);
-  }
+    override fun append(v: String?) {
+        strbuf.append(v)
+    }
 
-  @Override
-  public String toString() {
-    return strbuf.toString();
-  }
+    override fun toString(): String {
+        return strbuf.toString()
+    }
 }

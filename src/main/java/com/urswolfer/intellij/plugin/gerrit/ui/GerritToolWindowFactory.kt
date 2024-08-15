@@ -13,48 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.intellij.openapi.project.DumbAware;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.SimpleToolWindowPanel;
-import com.intellij.openapi.wm.ToolWindow;
-import com.intellij.openapi.wm.ToolWindowFactory;
-import com.intellij.ui.content.Content;
-import com.intellij.ui.content.ContentFactory;
-import com.intellij.ui.content.ContentManager;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
+import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindow
+import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.ui.content.ContentFactory
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
 
 /**
  * @author Urs Wolfer
  */
-public class GerritToolWindowFactory implements ToolWindowFactory, DumbAware {
-    @Override
-    public void createToolWindowContent(final Project project, ToolWindow toolWindow) {
-        GerritToolWindow gerritToolWindow = GerritModule.getInstance(GerritToolWindow.class);
+class GerritToolWindowFactory : ToolWindowFactory, DumbAware {
+    override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+        val gerritToolWindow: GerritToolWindow = GerritModule.getInstance<GerritToolWindow>()
 
-        ProjectService projectService = project.getService(ProjectService.class);
-        projectService.setGerritToolWindow(gerritToolWindow);
+        val projectService = project.getService(ProjectService::class.java)
+        projectService.gerritToolWindow = gerritToolWindow
 
-        SimpleToolWindowPanel toolWindowContent = gerritToolWindow.createToolWindowContent(project);
+        val toolWindowContent = gerritToolWindow.createToolWindowContent(project)
 
-        ContentManager contentManager = toolWindow.getContentManager();
-        Content content = ContentFactory.SERVICE.getInstance().createContent(toolWindowContent, "", false);
-        contentManager.addContent(content);
-        contentManager.setSelectedContent(content);
+        val contentManager = toolWindow.contentManager
+        val content = ContentFactory.SERVICE.getInstance().createContent(toolWindowContent, "", false)
+        contentManager.addContent(content)
+        contentManager.setSelectedContent(content)
     }
 
-    public static class ProjectService {
-
-        private GerritToolWindow gerritToolWindow;
-
-        public GerritToolWindow getGerritToolWindow() {
-            return gerritToolWindow;
-        }
-
-        void setGerritToolWindow(GerritToolWindow gerritToolWindow) {
-            this.gerritToolWindow = gerritToolWindow;
-        }
+    class ProjectService {
+        var gerritToolWindow: GerritToolWindow? = null
     }
 }

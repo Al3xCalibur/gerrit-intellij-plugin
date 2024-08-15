@@ -13,118 +13,91 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
-import com.google.gerrit.extensions.api.changes.AbandonInput;
-import com.google.gerrit.extensions.common.ActionInfo;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.DialogWrapper;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.ui.SafeHtmlTextEditor;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
+import com.google.common.base.Strings
+import com.google.gerrit.extensions.api.changes.AbandonInput
+import com.google.gerrit.extensions.common.*
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogWrapper
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.ui.SafeHtmlTextEditor
+import javax.swing.JComponent
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class AbandonAction extends AbstractLoggedInChangeAction {
-
-    public AbandonAction() {
-        super("Abandon", "Abandon Change", AllIcons.Actions.Cancel);
-    }
-
-    @Override
-    public void update(AnActionEvent e) {
-        super.update(e);
-        Optional<ChangeInfo> selectedChange = getSelectedChange(e);
-        if (selectedChange.isPresent() && !canAbandon(selectedChange.get())) {
-            e.getPresentation().setEnabled(false);
+// proxy class below is registered
+open class AbandonAction : AbstractLoggedInChangeAction("Abandon", "Abandon Change", AllIcons.Actions.Cancel) {
+    override fun update(e: AnActionEvent) {
+        super.update(e)
+        val selectedChange = getSelectedChange(e)
+        if (selectedChange != null && !canAbandon(selectedChange)) {
+            e.presentation.isEnabled = false
         }
     }
 
-    private boolean canAbandon(ChangeInfo selectedChange) {
+    private fun canAbandon(selectedChange: ChangeInfo): Boolean {
         if (selectedChange.actions == null) {
             // if there are absolutely no actions, assume an older Gerrit instance
             // which does not support receiving actions
             // return false once we drop Gerrit < 2.9 support
-            return true;
+            return true
         }
-        ActionInfo abandonAction = selectedChange.actions.get("abandon");
-        return abandonAction != null && Boolean.TRUE.equals(abandonAction.enabled);
+        val abandonAction = selectedChange.actions["abandon"]
+        return abandonAction != null && java.lang.Boolean.TRUE == abandonAction.enabled
     }
 
-    @Override
-    public void actionPerformed(AnActionEvent anActionEvent) {
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
 
-        Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
+        val selectedChange = getSelectedChange(anActionEvent) ?: return
+
+        val abandonInput = AbandonInput()
+
+        val editor = SafeHtmlTextEditor(project)
+        val dialog = AbandonDialog(project, true, editor)
+        dialog.show()
+        if (!dialog.isOK) {
+            return
         }
-
-        AbandonInput abandonInput = new AbandonInput();
-
-        SafeHtmlTextEditor editor = new SafeHtmlTextEditor(project);
-        AbandonDialog dialog = new AbandonDialog(project, true, editor);
-        dialog.show();
-        if (!dialog.isOK()) {
-            return;
-        }
-        String message = editor.getMessageField().getText().trim();
+        val message = editor.messageField.text.trim { it <= ' ' }
         if (!Strings.isNullOrEmpty(message)) {
-            abandonInput.message = message;
+            abandonInput.message = message
         }
 
-        gerritUtil.postAbandon(selectedChange.get().id, abandonInput, project);
+        gerritUtil.postAbandon(selectedChange.id, abandonInput, project)
     }
 
-    private static class AbandonDialog extends DialogWrapper {
-        private final SafeHtmlTextEditor editor;
-
-        protected AbandonDialog(Project project, boolean canBeParent, SafeHtmlTextEditor editor) {
-            super(project, canBeParent);
-            this.editor = editor;
-            setTitle("Abandon Change");
-            setOKButtonText("Abandon");
-            init();
+    private class AbandonDialog(project: Project?, canBeParent: Boolean, private val editor: SafeHtmlTextEditor) :
+        DialogWrapper(project, canBeParent) {
+        init {
+            title = "Abandon Change"
+            setOKButtonText("Abandon")
+            init()
         }
 
-        @Nullable
-        @Override
-        protected JComponent createCenterPanel() {
-            return editor;
+        override fun createCenterPanel(): JComponent {
+            return editor
         }
 
-        @Override
-        public JComponent getPreferredFocusedComponent() {
-            return editor.getMessageField();
+        override fun getPreferredFocusedComponent(): JComponent {
+            return editor.messageField
         }
     }
 
-    public static class Proxy extends AbandonAction {
-        private final AbandonAction delegate;
+    class Proxy : AbandonAction() {
+        private val delegate: AbandonAction = GerritModule.getInstance<AbandonAction>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(AbandonAction.class);
+        override fun update(e: AnActionEvent) {
+            delegate.update(e)
         }
 
-        @Override
-        public void update(AnActionEvent e) {
-            delegate.update(e);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

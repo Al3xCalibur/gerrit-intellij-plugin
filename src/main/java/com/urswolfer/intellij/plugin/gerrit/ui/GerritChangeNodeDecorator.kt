@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vcs.changes.Change;
-import com.intellij.ui.SimpleColoredComponent;
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.changes.Change
+import com.intellij.ui.SimpleColoredComponent
 
 /**
  * Interface for node decorators in this plugin's
- * {@link com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser}.
+ * [com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser].
  *
- * Implementations might be added to the corresponding {@link com.google.inject.multibindings.Multibinder} in
- * {@link com.urswolfer.intellij.plugin.gerrit.ui.GerritUiModule}.
+ * Implementations might be added to the corresponding [com.google.inject.multibindings.Multibinder] in
+ * [com.urswolfer.intellij.plugin.gerrit.ui.GerritUiModule].
  *
  * @author Thomas Forrer
  */
-public interface GerritChangeNodeDecorator {
+interface GerritChangeNodeDecorator {
     /**
-     * Decorate the {@code component} on the provided {@code change} in the provided {@code project}
+     * Decorate the `component` on the provided `change` in the provided `project`
      */
-    void decorate(Project project, Change change, SimpleColoredComponent component, ChangeInfo selectedChange);
+    fun decorate(project: Project, change: Change, component: SimpleColoredComponent, selectedChange: ChangeInfo?)
 
     /**
      * This method is called, when a new change is selected in the changes list panel
      */
-    void onChangeSelected(Project project, ChangeInfo selectedChange);
+    fun onChangeSelected(project: Project?, selectedChange: ChangeInfo?)
 }

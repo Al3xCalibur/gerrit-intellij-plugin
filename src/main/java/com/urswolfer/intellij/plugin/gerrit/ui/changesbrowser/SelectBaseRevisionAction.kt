@@ -15,145 +15,118 @@
  *  * limitations under the License.
  *
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser
 
-package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Lists;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.RevisionInfo;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.openapi.util.NlsActions;
-import com.intellij.openapi.util.Pair;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction;
-import com.urswolfer.intellij.plugin.gerrit.util.RevisionInfos;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Observable;
-import java.util.Observer;
+import com.google.common.base.Function
+import com.google.common.base.Optional
+import com.google.common.collect.*
+import com.google.gerrit.extensions.common.*
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.UpdateInBackground
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.util.NlsActions.ActionText
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction
+import com.urswolfer.intellij.plugin.gerrit.util.RevisionInfos
+import java.util.*
 
 /**
  * @author Thomas Forrer
  */
-@SuppressWarnings("ComponentNotRegistered")
-public class SelectBaseRevisionAction extends BasePopupAction {
+class SelectBaseRevisionAction(private val selectedRevisions: SelectedRevisions?) : BasePopupAction("Diff against") {
+    private var selectedChange: ChangeInfo? = null
+    private var selectedValue: Pair<String, RevisionInfo>? = null
+    private val listeners: MutableList<Listener> = mutableListOf()
 
-    private static final String BASE = "Base";
-    private static final Function<Pair<String, RevisionInfo>, String> REVISION_LABEL_FUNCTION = new Function<Pair<String, RevisionInfo>, String>() {
-        @Override
-        public String apply(Pair<String, RevisionInfo> revisionInfo) {
-            return String.format("%s: %s",
-                    revisionInfo.getSecond()._number,
-                    revisionInfo.getFirst().substring(0, 7));
-        }
-    };
-    private final SelectedRevisions selectedRevisions;
-
-    private Optional<ChangeInfo> selectedChange = Optional.absent();
-    private Optional<Pair<String, RevisionInfo>> selectedValue = Optional.absent();
-    private List<Listener> listeners = Lists.newArrayList();
-
-    public SelectBaseRevisionAction(final SelectedRevisions selectedRevisions) {
-        super("Diff against");
-        this.selectedRevisions = selectedRevisions;
-        selectedRevisions.addObserver((o, arg) -> {
-            if (arg instanceof String && selectedValue.isPresent()) {
-                Optional<String> selectedRevision = selectedRevisions.get((String) arg);
-                if (selectedRevision.isPresent() && selectedRevision.get().equals(selectedValue.get().getFirst())) {
-                    removeSelectedValue();
-                    updateLabel();
+    init {
+        selectedRevisions!!.addObserver { o: Observable?, arg: Any? ->
+            val value = selectedValue
+            if (arg is String && value != null) {
+                val selectedRevision = selectedRevisions[arg]
+                if (selectedRevision != null && selectedRevision == value.first) {
+                    removeSelectedValue()
+                    updateLabel()
                 }
             }
-        });
-        updateLabel();
+        }
+        updateLabel()
     }
 
-    @Override
-    protected void createActions(Consumer<AnAction> anActionConsumer) {
-        anActionConsumer.consume(new DumbAwareUpdateInBackgroundAction("Base") {
-            @Override
-            public void actionPerformed(AnActionEvent e) {
-                removeSelectedValue();
-                updateLabel();
+    override fun createActions(anActionConsumer: Consumer<AnAction?>) {
+        anActionConsumer.consume(object : DumbAwareUpdateInBackgroundAction(BASE) {
+            override fun actionPerformed(e: AnActionEvent) {
+                removeSelectedValue()
+                updateLabel()
             }
-        });
-        if (selectedChange.isPresent()) {
-            ImmutableSortedSet<Map.Entry<String, RevisionInfo>> revisions = ImmutableSortedSet.copyOf(
-                    RevisionInfos.MAP_ENTRY_COMPARATOR,
-                    selectedChange.get().revisions.entrySet());
-            for (Map.Entry<String, RevisionInfo> entry : revisions) {
-                anActionConsumer.consume(getActionForRevision(entry.getKey(), entry.getValue()));
-            }
+        })
+        val selectedChange = selectedChange ?: return
+        val revisions = selectedChange.revisions.entries.toSortedSet(RevisionInfos.MAP_ENTRY_COMPARATOR)
+        for (entry in revisions) {
+            anActionConsumer.consume(getActionForRevision(entry.key, entry.value))
         }
     }
 
-    public void setSelectedChange(ChangeInfo selectedChange) {
-        this.selectedChange = Optional.of(selectedChange);
-        selectedValue = Optional.absent();
-        updateLabel();
+    fun setSelectedChange(selectedChange: ChangeInfo?) {
+        this.selectedChange = selectedChange
+        selectedValue = null
+        updateLabel()
     }
 
-    public void addRevisionSelectedListener(Listener listener) {
-        this.listeners.add(listener);
+    fun addRevisionSelectedListener(listener: Listener) {
+        listeners.add(listener)
     }
 
-    private DumbAwareAction getActionForRevision(final String commitHash, final RevisionInfo revisionInfo) {
-        final Pair<String, RevisionInfo> infoPair = Pair.create(commitHash, revisionInfo);
-        String actionLabel = REVISION_LABEL_FUNCTION.apply(infoPair);
-        return new DumbAwareUpdateInBackgroundAction(actionLabel) {
-            @Override
-            public void actionPerformed(AnActionEvent e) {
-                updateSelectedValue(infoPair);
-                updateLabel();
+    private fun getActionForRevision(commitHash: String, revisionInfo: RevisionInfo): DumbAwareAction {
+        val infoPair = commitHash to revisionInfo
+        val actionLabel = REVISION_LABEL_FUNCTION(infoPair)
+        return object : DumbAwareUpdateInBackgroundAction(actionLabel) {
+            override fun actionPerformed(e: AnActionEvent) {
+                updateSelectedValue(infoPair)
+                updateLabel()
             }
 
-            @Override
-            public void update(AnActionEvent e) {
-                e.getPresentation().setEnabled(!isSameRevisionAsSelected());
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = !isSameRevisionAsSelected
             }
 
-            private boolean isSameRevisionAsSelected() {
-                return commitHash.equals(selectedRevisions.get(selectedChange.get()));
-            }
-        };
-    }
-
-    private void updateSelectedValue(Pair<String, RevisionInfo> revisionInfo) {
-        selectedValue = Optional.of(revisionInfo);
-        notifyListeners();
-    }
-
-    private void removeSelectedValue() {
-        selectedValue = Optional.absent();
-        notifyListeners();
-    }
-
-    private void notifyListeners() {
-        for (Listener listener : listeners) {
-            listener.revisionSelected(selectedValue);
+            private val isSameRevisionAsSelected: Boolean
+                get() = commitHash == selectedRevisions!![selectedChange]
         }
     }
 
-    private void updateLabel() {
-        updateFilterValueLabel(selectedValue.transform(REVISION_LABEL_FUNCTION).or(BASE));
+    private fun updateSelectedValue(revisionInfo: Pair<String, RevisionInfo>) {
+        selectedValue = revisionInfo
+        notifyListeners()
     }
 
-    public static interface Listener {
-        void revisionSelected(Optional<Pair<String, RevisionInfo>> revisionInfo);
+    private fun removeSelectedValue() {
+        selectedValue = null
+        notifyListeners()
     }
 
-    private abstract class DumbAwareUpdateInBackgroundAction extends DumbAwareAction implements UpdateInBackground {
-        protected DumbAwareUpdateInBackgroundAction(@Nullable @NlsActions.ActionText String text) {
-            super(text);
+    private fun notifyListeners() {
+        for (listener in listeners) {
+            listener.revisionSelected(selectedValue)
+        }
+    }
+
+    private fun updateLabel() {
+        updateFilterValueLabel(REVISION_LABEL_FUNCTION(selectedValue))
+    }
+
+    fun interface Listener {
+        fun revisionSelected(revisionInfo: Pair<String, RevisionInfo>?)
+    }
+
+    private abstract inner class DumbAwareUpdateInBackgroundAction protected constructor(text: @ActionText String?) :
+        DumbAwareAction(text), UpdateInBackground
+
+    companion object {
+        private const val BASE = "Base"
+        private val REVISION_LABEL_FUNCTION: (Pair<String, RevisionInfo>?) -> String = { revisionInfo ->
+            "${revisionInfo?.second?._number}: ${revisionInfo?.first?.substring(0, 7)}"
         }
     }
 }

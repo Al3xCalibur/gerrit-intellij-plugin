@@ -13,53 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.inject.Inject;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.intellij.openapi.project.DumbAware;
-import com.intellij.openapi.project.Project;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.ui.GerritToolWindow;
-import com.urswolfer.intellij.plugin.gerrit.ui.GerritToolWindowFactory;
-import com.urswolfer.intellij.plugin.gerrit.ui.GerritUpdatesNotificationComponent;
+import com.google.inject.Inject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.actionSystem.UpdateInBackground
+import com.intellij.openapi.project.DumbAware
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.ui.GerritToolWindowFactory.ProjectService
+import com.urswolfer.intellij.plugin.gerrit.ui.GerritUpdatesNotificationComponent
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class RefreshAction extends AnAction implements DumbAware, UpdateInBackground {
+// proxy class below is registered
+open class RefreshAction : AnAction("Refresh", "Refresh changes list", AllIcons.Actions.Refresh), DumbAware,
+    UpdateInBackground {
     @Inject
-    private GerritUpdatesNotificationComponent gerritUpdatesNotificationComponent;
+    private lateinit var gerritUpdatesNotificationComponent: GerritUpdatesNotificationComponent
 
-    public RefreshAction() {
-        super("Refresh", "Refresh changes list", AllIcons.Actions.Refresh);
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.getData(PlatformDataKeys.PROJECT)
+        val projectService = project!!.getService(ProjectService::class.java)
+        val gerritToolWindow = projectService.gerritToolWindow
+        gerritToolWindow!!.reloadChanges(project, true)
+        gerritUpdatesNotificationComponent.handleNotification()
     }
 
-    @Override
-    public void actionPerformed(AnActionEvent e) {
-        Project project = e.getData(PlatformDataKeys.PROJECT);
-        GerritToolWindowFactory.ProjectService projectService = project.getService(GerritToolWindowFactory.ProjectService.class);
-        GerritToolWindow gerritToolWindow = projectService.getGerritToolWindow();
-        gerritToolWindow.reloadChanges(project, true);
-        gerritUpdatesNotificationComponent.handleNotification();
-    }
+    class Proxy : RefreshAction() {
+        private val delegate: RefreshAction = GerritModule.getInstance<RefreshAction>()
 
-    public static class Proxy extends RefreshAction {
-        private final RefreshAction delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(RefreshAction.class);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

@@ -13,64 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
-package com.urswolfer.intellij.plugin.gerrit.ui.diff;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Longs;
-import com.google.gerrit.extensions.client.Comment;
-import com.google.gerrit.extensions.client.Side;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.CommentInfo;
-import com.google.gerrit.extensions.common.RevisionInfo;
-import com.google.inject.Inject;
-import com.intellij.codeInsight.highlighting.HighlightManager;
-import com.intellij.diff.DiffContext;
-import com.intellij.diff.DiffTool;
-import com.intellij.diff.FrameDiffTool;
-import com.intellij.diff.SuppressiveDiffTool;
-import com.intellij.diff.requests.ContentDiffRequest;
-import com.intellij.diff.requests.DiffRequest;
-import com.intellij.diff.tools.fragmented.UnifiedDiffTool;
-import com.intellij.diff.tools.simple.SimpleDiffTool;
-import com.intellij.diff.tools.simple.SimpleDiffViewer;
-import com.intellij.diff.tools.simple.SimpleOnesideDiffViewer;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.CustomShortcutSet;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.editor.ex.EditorEx;
-import com.intellij.openapi.editor.markup.HighlighterLayer;
-import com.intellij.openapi.editor.markup.MarkupModel;
-import com.intellij.openapi.editor.markup.RangeHighlighter;
-import com.intellij.openapi.editor.markup.TextAttributes;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Pair;
-import com.intellij.openapi.vcs.FilePath;
-import com.intellij.openapi.vcs.changes.Change;
-import com.intellij.openapi.vcs.changes.ChangesUtil;
-import com.intellij.openapi.vcs.changes.actions.diff.ChangeDiffRequestProducer;
-import com.intellij.ui.JBColor;
-import com.intellij.ui.PopupHandler;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.GerritUserDataKeys;
-import com.urswolfer.intellij.plugin.gerrit.util.PathUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import com.google.common.base.Optional
+import com.google.common.base.Predicate
+import com.google.common.base.Predicates
+import com.google.common.collect.*
+import com.google.common.primitives.Longs
+import com.google.gerrit.extensions.client.Comment
+import com.google.gerrit.extensions.client.Side
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.codeInsight.highlighting.HighlightManager
+import com.intellij.diff.DiffContext
+import com.intellij.diff.DiffTool
+import com.intellij.diff.FrameDiffTool
+import com.intellij.diff.SuppressiveDiffTool
+import com.intellij.diff.requests.ContentDiffRequest
+import com.intellij.diff.requests.DiffRequest
+import com.intellij.diff.tools.fragmented.UnifiedDiffTool
+import com.intellij.diff.tools.simple.SimpleDiffTool
+import com.intellij.diff.tools.simple.SimpleDiffViewer
+import com.intellij.diff.tools.simple.SimpleOnesideDiffViewer
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.CustomShortcutSet
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.openapi.editor.markup.HighlighterLayer
+import com.intellij.openapi.editor.markup.RangeHighlighter
+import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.changes.*
+import com.intellij.openapi.vcs.changes.actions.diff.ChangeDiffRequestProducer
+import com.intellij.ui.JBColor
+import com.intellij.ui.PopupHandler
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.util.*
 
 /**
  * @author Urs Wolfer
@@ -78,297 +60,307 @@ import java.util.Map;
  * Some parts based on code from:
  * https://github.com/ktisha/Crucible4IDEA
  */
-public class CommentsDiffTool implements FrameDiffTool, SuppressiveDiffTool {
-    private static final Predicate<Comment> REVISION_COMMENT = new Predicate<Comment>() {
-        @Override
-        public boolean apply(Comment comment) {
-            return comment.side == null || comment.side.equals(Side.REVISION);
-        }
-    };
-
-    private static final Ordering<Comment> COMMENT_ORDERING = new Ordering<Comment>() {
-        @Override
-        public int compare(Comment left, Comment right) {
-            // need to sort descending as icons are added to the left of existing icons
-            return -Longs.compare(left.updated.getTime(), right.updated.getTime());
-        }
-    };
+open class CommentsDiffTool : FrameDiffTool, SuppressiveDiffTool {
+    @Inject
+    private lateinit var gerritUtil: GerritUtil
 
     @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private GerritSettings gerritSettings;
-    @Inject
-    private AddCommentActionBuilder addCommentActionBuilder;
-    @Inject
-    private PathUtils pathUtils;
-    @Inject
-    private SelectedRevisions selectedRevisions;
+    private lateinit var gerritSettings: GerritSettings
 
-    @NotNull
-    @Override
-    public String getName() {
-        return SimpleDiffTool.INSTANCE.getName();
+    @Inject
+    private lateinit var addCommentActionBuilder: AddCommentActionBuilder
+
+    @Inject
+    private lateinit var pathUtils: PathUtils
+
+    @Inject
+    private lateinit var selectedRevisions: SelectedRevisions
+
+    override fun getName(): String {
+        return SimpleDiffTool.INSTANCE.name
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public List<Class<? extends DiffTool>> getSuppressedTools() {
-        return Lists.<Class<? extends DiffTool>>newArrayList(
-            UnifiedDiffTool.INSTANCE.getClass(),
-            SimpleDiffTool.INSTANCE.getClass()
-        );
+    override fun getSuppressedTools(): List<Class<out DiffTool>> {
+        return listOf(
+            UnifiedDiffTool.INSTANCE.javaClass,
+            SimpleDiffTool.INSTANCE.javaClass
+        )
     }
 
-    @Override
-    public boolean canShow(@NotNull DiffContext context, @NotNull DiffRequest request) {
-        if (context.getUserData(GerritUserDataKeys.CHANGE) == null) return false;
-        if (context.getUserData(GerritUserDataKeys.BASE_REVISION) == null) return false;
-        if (request.getUserData(ChangeDiffRequestProducer.CHANGE_KEY) == null) return false;
-        return SimpleDiffViewer.canShowRequest(context, request)
-            || SimpleOnesideDiffViewer.canShowRequest(context, request);
+    override fun canShow(context: DiffContext, request: DiffRequest): Boolean {
+        if (context.getUserData<ChangeInfo?>(GerritUserDataKeys.CHANGE) == null) return false
+        if (context.getUserData<Pair<String, RevisionInfo>?>(GerritUserDataKeys.BASE_REVISION) == null) return false
+        if (request.getUserData(ChangeDiffRequestProducer.CHANGE_KEY) == null) return false
+        return (SimpleDiffViewer.canShowRequest(context, request)
+                || SimpleOnesideDiffViewer.canShowRequest(context, request))
     }
 
-    @NotNull
-    @Override
-    public DiffViewer createComponent(@NotNull DiffContext context, @NotNull DiffRequest request) {
-        if (SimpleDiffViewer.canShowRequest(context, request)) {
-            return new SimpleCommentsDiffViewer(context, request);
+    override fun createComponent(context: DiffContext, request: DiffRequest): FrameDiffTool.DiffViewer {
+        return if (SimpleDiffViewer.canShowRequest(context, request)) {
+            SimpleCommentsDiffViewer(context, request)
         } else {
-            return new SimpleOnesideCommentsDiffViewer(context, request);
+            SimpleOnesideCommentsDiffViewer(context, request)
         }
     }
 
-    private void handleComments(@Nullable final EditorEx editor1,
-                                final EditorEx editor2,
-                                Change change,
-                                final Project project,
-                                final ChangeInfo changeInfo,
-                                final String selectedRevisionId,
-                                final Optional<Pair<String, RevisionInfo>> baseRevision) {
-        FilePath filePath = ChangesUtil.getFilePath(change);
-        final String relativeFilePath = PathUtils.ensureSlashSeparators(getRelativeOrAbsolutePath(project, filePath.getPath(), changeInfo));
+    private fun handleComments(
+        editor1: EditorEx?,
+        editor2: EditorEx,
+        change: Change,
+        project: Project?,
+        changeInfo: ChangeInfo,
+        selectedRevisionId: String?,
+        baseRevision: Pair<String, RevisionInfo>?
+    ) {
+        val filePath = ChangesUtil.getFilePath(change)
+        val relativeFilePath: String =
+            PathUtils.ensureSlashSeparators(getRelativeOrAbsolutePath(project, filePath.path, changeInfo))
 
-        addCommentAction(editor1, editor2, relativeFilePath, changeInfo, selectedRevisionId, baseRevision);
+        addCommentAction(editor1, editor2, relativeFilePath, changeInfo, selectedRevisionId, baseRevision)
 
-        gerritUtil.getComments(changeInfo._number, selectedRevisionId, project, true, true,
-                new Consumer<Map<String, List<CommentInfo>>>() {
-                    @Override
-                    public void consume(Map<String, List<CommentInfo>> comments) {
-                        List<CommentInfo> fileComments = comments.get(relativeFilePath);
-                        if (fileComments != null) {
-                            addCommentsGutter(
-                                    editor2,
-                                    relativeFilePath,
-                                    selectedRevisionId,
-                                    Iterables.filter(fileComments, REVISION_COMMENT),
-                                    changeInfo,
-                                    project
-                            );
-                            if (!baseRevision.isPresent()) {
-                                addCommentsGutter(
-                                        editor1,
-                                        relativeFilePath,
-                                        selectedRevisionId,
-                                        Iterables.filter(fileComments, Predicates.not(REVISION_COMMENT)),
-                                        changeInfo,
-                                        project
-                                );
-                            }
-                        }
-                    }
+        gerritUtil.getComments(
+            changeInfo._number, selectedRevisionId, project, true, true
+        ) { comments ->
+            val fileComments = comments[relativeFilePath]
+            if (fileComments != null) {
+                addCommentsGutter(
+                    editor2,
+                    relativeFilePath,
+                    selectedRevisionId,
+                    fileComments.filter(REVISION_COMMENT),
+                    changeInfo,
+                    project
+                )
+                if (baseRevision == null) {
+                    addCommentsGutter(
+                        editor1,
+                        relativeFilePath,
+                        selectedRevisionId,
+                        fileComments.filter { x -> !REVISION_COMMENT(x) },
+                        changeInfo,
+                        project
+                    )
                 }
-        );
-
-        if (baseRevision.isPresent()) {
-            gerritUtil.getComments(changeInfo._number, baseRevision.get().getFirst(), project, true, true,
-                    new Consumer<Map<String, List<CommentInfo>>>() {
-                @Override
-                public void consume(Map<String, List<CommentInfo>> comments) {
-                    List<CommentInfo> fileComments = comments.get(relativeFilePath);
-                    if (fileComments != null) {
-                        fileComments.sort(COMMENT_ORDERING);
-                        addCommentsGutter(
-                                editor1,
-                                relativeFilePath,
-                                baseRevision.get().getFirst(),
-                                Iterables.filter(fileComments, REVISION_COMMENT),
-                                changeInfo,
-                                project
-                        );
-                    }
-                }
-            });
+            }
         }
 
-        gerritUtil.setReviewed(changeInfo._number, selectedRevisionId,
-                relativeFilePath, project);
+        if (baseRevision != null) {
+            gerritUtil.getComments(
+                changeInfo._number, baseRevision.first, project, true, true
+            ) { comments ->
+                val fileComments = comments[relativeFilePath]
+                if (fileComments != null) {
+                    addCommentsGutter(
+                        editor1,
+                        relativeFilePath,
+                        baseRevision.first,
+                        fileComments.sortedWith(COMMENT_ORDERING).filter(REVISION_COMMENT),
+                        changeInfo,
+                        project
+                    )
+                }
+            }
+        }
+
+        gerritUtil.setReviewed(
+            changeInfo._number, selectedRevisionId,
+            relativeFilePath, project
+        )
     }
 
-    private void addCommentAction(EditorEx editor1, EditorEx editor2, String filePath, ChangeInfo changeInfo,
-                                  String selectedRevisionId, Optional<Pair<String, RevisionInfo>> baseRevision) {
-        if (baseRevision.isPresent()) {
-            addCommentActionToEditor(editor1, filePath, changeInfo, baseRevision.get().getFirst(), Side.REVISION);
+    private fun addCommentAction(
+        editor1: EditorEx?, editor2: EditorEx, filePath: String, changeInfo: ChangeInfo?,
+        selectedRevisionId: String?, baseRevision: Pair<String, RevisionInfo>?
+    ) {
+        if (baseRevision != null) {
+            addCommentActionToEditor(editor1, filePath, changeInfo, baseRevision.first, Side.REVISION)
         } else {
-            addCommentActionToEditor(editor1, filePath, changeInfo, selectedRevisionId, Side.PARENT);
+            addCommentActionToEditor(editor1, filePath, changeInfo, selectedRevisionId, Side.PARENT)
         }
-        addCommentActionToEditor(editor2, filePath, changeInfo, selectedRevisionId, Side.REVISION);
+        addCommentActionToEditor(editor2, filePath, changeInfo, selectedRevisionId, Side.REVISION)
     }
 
-    private void addCommentActionToEditor(Editor editor,
-                                          String filePath,
-                                          ChangeInfo changeInfo,
-                                          String revisionId,
-                                          Side commentSide) {
-        if (editor == null) return;
+    private fun addCommentActionToEditor(
+        editor: Editor?,
+        filePath: String,
+        changeInfo: ChangeInfo?,
+        revisionId: String?,
+        commentSide: Side
+    ) {
+        if (editor == null) return
 
-        DefaultActionGroup group = new DefaultActionGroup();
-        final AddCommentAction addCommentAction = addCommentActionBuilder
-                .create(this, changeInfo, revisionId, editor, filePath, commentSide)
-                .withText("Add Comment")
-                .withIcon(AllIcons.Toolwindows.ToolWindowMessages)
-                .get();
-        addCommentAction.registerCustomShortcutSet(CustomShortcutSet.fromString("C"), editor.getContentComponent());
-        group.add(addCommentAction);
-        PopupHandler.installPopupHandler(editor.getContentComponent(), group, "GerritCommentDiffPopup");
+        val group = DefaultActionGroup()
+        val addCommentAction = addCommentActionBuilder
+            .create(this, changeInfo, revisionId, editor, filePath, commentSide)
+            .withText("Add Comment")
+            .withIcon(AllIcons.Toolwindows.ToolWindowMessages)
+            .get()
+        addCommentAction.registerCustomShortcutSet(CustomShortcutSet.fromString("C"), editor.contentComponent)
+        group.add(addCommentAction)
+        PopupHandler.installPopupHandler(editor.contentComponent, group, "GerritCommentDiffPopup")
     }
 
-    private void addCommentsGutter(Editor editor,
-                                   String filePath,
-                                   String revisionId,
-                                   Iterable<CommentInfo> fileComments,
-                                   ChangeInfo changeInfo,
-                                   Project project) {
-        for (CommentInfo fileComment : fileComments) {
-            fileComment.path = PathUtils.ensureSlashSeparators(filePath);
-            addComment(editor, changeInfo, revisionId, project, fileComment);
+    private fun addCommentsGutter(
+        editor: Editor?,
+        filePath: String,
+        revisionId: String?,
+        fileComments: Iterable<CommentInfo>,
+        changeInfo: ChangeInfo?,
+        project: Project?
+    ) {
+        for (fileComment in fileComments) {
+            fileComment.path = PathUtils.ensureSlashSeparators(filePath)
+            addComment(editor, changeInfo, revisionId, project, fileComment)
         }
     }
 
-    public void addComment(Editor editor, ChangeInfo changeInfo, String revisionId, Project project, Comment comment) {
-        if (editor == null) return;
-        MarkupModel markup = editor.getMarkupModel();
+    open fun addComment(
+        editor: Editor?,
+        changeInfo: ChangeInfo?,
+        revisionId: String?,
+        project: Project?,
+        comment: Comment
+    ) {
+        if (editor == null) return
+        val markup = editor.markupModel
 
-        RangeHighlighter rangeHighlighter = null;
+        var rangeHighlighter: RangeHighlighter? = null
         if (comment.range != null) {
-            rangeHighlighter = highlightRangeComment(comment.range, editor, project);
+            rangeHighlighter = highlightRangeComment(comment.range, editor, project)
         }
 
-        int lineCount = markup.getDocument().getLineCount();
+        val lineCount = markup.document.lineCount
 
-        int line = (comment.line != null ? comment.line : 0) - 1;
+        var line = (if (comment.line != null) comment.line else 0) - 1
         if (line < 0) {
-            line = 0;
+            line = 0
         }
         if (line > lineCount - 1) {
-            line = lineCount - 1;
+            line = lineCount - 1
         }
         if (line >= 0) {
-            final RangeHighlighter highlighter = markup.addLineHighlighter(line, HighlighterLayer.ERROR + 1, null);
-            CommentGutterIconRenderer iconRenderer = new CommentGutterIconRenderer(
-                    this, editor, gerritUtil, gerritSettings, addCommentActionBuilder,
-                    comment, changeInfo, revisionId, highlighter, rangeHighlighter);
-            highlighter.setGutterIconRenderer(iconRenderer);
+            val highlighter = markup.addLineHighlighter(line, HighlighterLayer.ERROR + 1, null)
+            val iconRenderer = CommentGutterIconRenderer(
+                this, editor, gerritUtil, gerritSettings, addCommentActionBuilder,
+                comment, changeInfo, revisionId, highlighter, rangeHighlighter
+            )
+            highlighter.gutterIconRenderer = iconRenderer
         }
     }
 
-    public void removeComment(Project project, Editor editor, RangeHighlighter lineHighlighter, RangeHighlighter rangeHighlighter) {
-        editor.getMarkupModel().removeHighlighter(lineHighlighter);
-        lineHighlighter.dispose();
+    open fun removeComment(
+        project: Project?,
+        editor: Editor?,
+        lineHighlighter: RangeHighlighter?,
+        rangeHighlighter: RangeHighlighter?
+    ) {
+        editor!!.markupModel.removeHighlighter(lineHighlighter!!)
+        lineHighlighter.dispose()
 
         if (rangeHighlighter != null) {
-            HighlightManager highlightManager = HighlightManager.getInstance(project);
-            highlightManager.removeSegmentHighlighter(editor, rangeHighlighter);
+            val highlightManager = HighlightManager.getInstance(project)
+            highlightManager.removeSegmentHighlighter(editor, rangeHighlighter)
         }
     }
 
-    private void handleDiffViewer(DiffContext diffContext, ContentDiffRequest diffRequest,
-                                  @Nullable EditorEx editor1, EditorEx editor2) {
-        ChangeInfo changeInfo = diffContext.getUserData(GerritUserDataKeys.CHANGE);
-        Optional<Pair<String, RevisionInfo>> baseRevision = diffContext.getUserData(GerritUserDataKeys.BASE_REVISION);
-        String selectedRevisionId = changeInfo != null ? selectedRevisions.get(changeInfo) : null;
-        Change change = diffRequest.getUserData(ChangeDiffRequestProducer.CHANGE_KEY);
-        handleComments(editor1, editor2, change, diffContext.getProject(), changeInfo, selectedRevisionId, baseRevision);
+    private fun handleDiffViewer(
+        diffContext: DiffContext, diffRequest: ContentDiffRequest,
+        editor1: EditorEx?, editor2: EditorEx
+    ) {
+        val changeInfo = diffContext.getUserData<ChangeInfo?>(GerritUserDataKeys.CHANGE)!!
+        val baseRevision =
+            diffContext.getUserData<Pair<String, RevisionInfo>?>(GerritUserDataKeys.BASE_REVISION)
+        val selectedRevisionId = if (changeInfo != null) selectedRevisions[changeInfo] else null
+        val change = diffRequest.getUserData(ChangeDiffRequestProducer.CHANGE_KEY)!!
+        handleComments(editor1, editor2, change, diffContext.project, changeInfo, selectedRevisionId, baseRevision)
     }
 
-    private class SimpleCommentsDiffViewer extends SimpleDiffViewer {
-        public SimpleCommentsDiffViewer(@NotNull DiffContext context, @NotNull DiffRequest request) {
-            super(context, request);
-        }
-
-        @Override
-        protected void onInit() {
-            super.onInit();
-            handleDiffViewer(myContext, myRequest, getEditor1(), getEditor2());
-        }
-    }
-
-    private class SimpleOnesideCommentsDiffViewer extends SimpleOnesideDiffViewer {
-        public SimpleOnesideCommentsDiffViewer(@NotNull DiffContext context, @NotNull DiffRequest request) {
-            super(context, request);
-        }
-
-        @Override
-        protected void onInit() {
-            super.onInit();
-            handleDiffViewer(myContext, myRequest, null, getEditor());
+    private inner class SimpleCommentsDiffViewer(context: DiffContext, request: DiffRequest) :
+        SimpleDiffViewer(context, request) {
+        override fun onInit() {
+            super.onInit()
+            handleDiffViewer(myContext, myRequest, editor1, editor2)
         }
     }
 
-    private String getRelativeOrAbsolutePath(Project project, String absoluteFilePath, ChangeInfo changeInfo) {
-        return pathUtils.getRelativeOrAbsolutePath(project, absoluteFilePath, changeInfo.project);
+    private inner class SimpleOnesideCommentsDiffViewer(context: DiffContext, request: DiffRequest) :
+        SimpleOnesideDiffViewer(context, request) {
+        override fun onInit() {
+            super.onInit()
+            handleDiffViewer(myContext, myRequest, null, editor)
+        }
     }
 
-    private static RangeHighlighter highlightRangeComment(Comment.Range range, Editor editor, Project project) {
-        CharSequence charsSequence = editor.getMarkupModel().getDocument().getCharsSequence();
-
-        RangeUtils.Offset offset = RangeUtils.rangeToTextOffset(charsSequence, range);
-
-        TextAttributes attributes = new TextAttributes();
-        attributes.setBackgroundColor(JBColor.YELLOW);
-        ArrayList<RangeHighlighter> highlighters = Lists.newArrayList();
-        HighlightManager highlightManager = HighlightManager.getInstance(project);
-        highlightManager.addRangeHighlight(editor, offset.start, offset.end, attributes, false, highlighters);
-        return highlighters.get(0);
+    private fun getRelativeOrAbsolutePath(
+        project: Project?,
+        absoluteFilePath: String,
+        changeInfo: ChangeInfo
+    ): String? {
+        return pathUtils.getRelativeOrAbsolutePath(project, absoluteFilePath, changeInfo.project)
     }
 
-    public static class Proxy extends CommentsDiffTool {
-        private CommentsDiffTool delegate;
+    class Proxy : CommentsDiffTool() {
+        private val delegate: CommentsDiffTool = GerritModule.getInstance<CommentsDiffTool>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(CommentsDiffTool.class);
+        override fun getName(): String {
+            return delegate.name
         }
 
-        @NotNull
-        @Override
-        public String getName() {
-            return delegate.getName();
+        override fun getSuppressedTools(): List<Class<out DiffTool>> {
+            return delegate.suppressedTools
         }
 
-        @Override
-        public List<Class<? extends DiffTool>> getSuppressedTools() {
-            return delegate.getSuppressedTools();
+        override fun canShow(context: DiffContext, request: DiffRequest): Boolean {
+            return delegate.canShow(context, request)
         }
 
-        @Override
-        public boolean canShow(@NotNull DiffContext context, @NotNull DiffRequest request) {
-            return delegate.canShow(context, request);
+        override fun createComponent(context: DiffContext, request: DiffRequest): FrameDiffTool.DiffViewer {
+            return delegate.createComponent(context, request)
         }
 
-        @NotNull
-        @Override
-        public DiffViewer createComponent(@NotNull DiffContext context, @NotNull DiffRequest request) {
-            return delegate.createComponent(context, request);
+        override fun addComment(
+            editor: Editor?,
+            changeInfo: ChangeInfo?,
+            revisionId: String?,
+            project: Project?,
+            comment: Comment
+        ) {
+            delegate.addComment(editor, changeInfo, revisionId, project, comment)
         }
 
-        @Override
-        public void addComment(Editor editor, ChangeInfo changeInfo, String revisionId, Project project, Comment comment) {
-            delegate.addComment(editor, changeInfo, revisionId, project, comment);
+        override fun removeComment(
+            project: Project?,
+            editor: Editor?,
+            lineHighlighter: RangeHighlighter?,
+            rangeHighlighter: RangeHighlighter?
+        ) {
+            delegate.removeComment(project, editor, lineHighlighter, rangeHighlighter)
+        }
+    }
+
+    companion object {
+        private val REVISION_COMMENT = { comment: Comment ->
+            comment.side == null || comment.side == Side.REVISION
         }
 
-        @Override
-        public void removeComment(Project project, Editor editor, RangeHighlighter lineHighlighter, RangeHighlighter rangeHighlighter) {
-            delegate.removeComment(project, editor, lineHighlighter, rangeHighlighter);
+        private val COMMENT_ORDERING: Ordering<Comment> = object : Ordering<Comment>() {
+            override fun compare(left: Comment?, right: Comment?): Int {
+                // need to sort descending as icons are added to the left of existing icons
+                return -Longs.compare(left!!.updated.time, right!!.updated.time)
+            }
+        }
+
+        private fun highlightRangeComment(range: Comment.Range, editor: Editor, project: Project?): RangeHighlighter {
+            val charsSequence = editor.markupModel.document.charsSequence
+
+            val offset = RangeUtils.rangeToTextOffset(charsSequence, range)
+
+            val attributes = TextAttributes()
+            attributes.backgroundColor = JBColor.YELLOW
+            val highlighters = Lists.newArrayList<RangeHighlighter>()
+            val highlightManager = HighlightManager.getInstance(project)
+            highlightManager.addRangeHighlight(editor, offset.start, offset.end, attributes, false, highlighters)
+            return highlighters[0]
         }
     }
 }

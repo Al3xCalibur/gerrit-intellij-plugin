@@ -15,84 +15,86 @@
  *  * limitations under the License.
  *
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser
 
-package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vcs.VcsException;
-import com.intellij.openapi.vcs.changes.Change;
-import com.intellij.openapi.vcs.changes.ContentRevision;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.urswolfer.intellij.plugin.gerrit.util.PathUtils;
-import git4idea.GitCommit;
-import git4idea.changes.GitChangeUtils;
-
-import java.util.Collection;
+import com.google.common.base.Predicate
+import com.google.common.collect.Iterables
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.VcsException
+import com.intellij.openapi.vcs.changes.*
+import com.intellij.openapi.vfs.VirtualFile
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import git4idea.GitCommit
+import git4idea.changes.GitChangeUtils
 
 /**
  * This class diffs commits based in IntelliJ git4idea code and adds support for diffing commit msg.
  *
  * @author Thomas Forrer
  */
-public class CommitDiffBuilder {
+class CommitDiffBuilder(
+    private val project: Project,
+    private val gitRepositoryRoot: VirtualFile,
+    private val base: GitCommit,
+    private val commit: GitCommit
+) {
+    private var changesProvider: ChangesProvider = SimpleChangesProvider()
 
-    private static final Predicate<Change> COMMIT_MSG_CHANGE_PREDICATE = change -> {
-        String commitMsgFile = "/COMMIT_MSG";
-        ContentRevision afterRevision = change.getAfterRevision();
-        if (afterRevision != null) {
-            return commitMsgFile.equals(PathUtils.ensureSlashSeparators(afterRevision.getFile().getPath()));
+    fun withChangesProvider(changesProvider: ChangesProvider): CommitDiffBuilder {
+        this.changesProvider = changesProvider
+        return this
+    }
+
+    @get:Throws(VcsException::class)
+    val diff: Collection<Change>
+        get() {
+            val baseHash = base.id.asString()
+            val hash = commit.id.asString()
+            val result = GitChangeUtils.getDiff(
+                project, gitRepositoryRoot, baseHash, hash, null
+            )
+            result.add(buildCommitMsgChange())
+            return result
         }
-        ContentRevision beforeRevision = change.getBeforeRevision();
-        if (beforeRevision != null) {
-            return commitMsgFile.equals(PathUtils.ensureSlashSeparators(beforeRevision.getFile().getPath()));
+
+    private fun buildCommitMsgChange(): Change {
+        val baseChange = Iterables.find(
+            changesProvider.provide(
+                base
+            ), COMMIT_MSG_CHANGE_PREDICATE
+        )
+        val baseRevision = baseChange.afterRevision
+        val change = Iterables.find(
+            changesProvider.provide(
+                commit
+            ), COMMIT_MSG_CHANGE_PREDICATE
+        )
+        val revision = change.afterRevision
+        return Change(baseRevision, revision)
+    }
+
+    interface ChangesProvider {
+        fun provide(gitCommit: GitCommit): Collection<Change>
+    }
+
+    private class SimpleChangesProvider : ChangesProvider {
+        override fun provide(gitCommit: GitCommit): Collection<Change> {
+            return gitCommit.changes
         }
-        throw new IllegalStateException("Change should have at least one ContentRevision set.");
-    };
-
-    private final Project project;
-    private final VirtualFile gitRepositoryRoot;
-    private final GitCommit base;
-    private final GitCommit commit;
-    private ChangesProvider changesProvider = new SimpleChangesProvider();
-
-    public CommitDiffBuilder(Project project, VirtualFile gitRepositoryRoot, GitCommit base, GitCommit commit) {
-        this.project = project;
-        this.gitRepositoryRoot = gitRepositoryRoot;
-        this.base = base;
-        this.commit = commit;
     }
 
-    public CommitDiffBuilder withChangesProvider(ChangesProvider changesProvider) {
-        this.changesProvider = changesProvider;
-        return this;
-    }
-
-    public Collection<Change> getDiff() throws VcsException {
-        String baseHash = base.getId().asString();
-        String hash = commit.getId().asString();
-        Collection<Change> result = GitChangeUtils.getDiff(project, gitRepositoryRoot, baseHash, hash, null);
-        result.add(buildCommitMsgChange());
-        return result;
-    }
-
-    private Change buildCommitMsgChange() {
-        Change baseChange = Iterables.find(changesProvider.provide(base), COMMIT_MSG_CHANGE_PREDICATE);
-        ContentRevision baseRevision = baseChange.getAfterRevision();
-        Change change = Iterables.find(changesProvider.provide(commit), COMMIT_MSG_CHANGE_PREDICATE);
-        ContentRevision revision = change.getAfterRevision();
-        return new Change(baseRevision, revision);
-    }
-
-    public static interface ChangesProvider {
-        Collection<Change> provide(GitCommit gitCommit);
-    }
-
-    private static final class SimpleChangesProvider implements ChangesProvider {
-        @Override
-        public Collection<Change> provide(GitCommit gitCommit) {
-            return gitCommit.getChanges();
+    companion object {
+        private val COMMIT_MSG_CHANGE_PREDICATE = Predicate<Change> { change: Change? ->
+            val commitMsgFile = "/COMMIT_MSG"
+            val afterRevision = change!!.afterRevision
+            if (afterRevision != null) {
+                return@Predicate commitMsgFile == PathUtils.ensureSlashSeparators(afterRevision.file.path)
+            }
+            val beforeRevision = change.beforeRevision
+            if (beforeRevision != null) {
+                return@Predicate commitMsgFile == PathUtils.ensureSlashSeparators(beforeRevision.file.path)
+            }
+            throw IllegalStateException("Change should have at least one ContentRevision set.")
         }
     }
 }

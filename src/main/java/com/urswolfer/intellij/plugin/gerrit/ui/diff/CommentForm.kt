@@ -13,30 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
-package com.urswolfer.intellij.plugin.gerrit.ui.diff;
-
-import com.google.gerrit.extensions.api.changes.DraftInput;
-import com.google.gerrit.extensions.client.Comment;
-import com.google.gerrit.extensions.client.Side;
-import com.intellij.openapi.actionSystem.CommonShortcuts;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.editor.SelectionModel;
-import com.intellij.openapi.keymap.KeymapUtil;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.popup.JBPopup;
-import com.intellij.openapi.wm.IdeFocusManager;
-import com.intellij.ui.EditorTextField;
-import com.urswolfer.intellij.plugin.gerrit.ui.SafeHtmlTextEditor;
-import com.urswolfer.intellij.plugin.gerrit.util.PathUtils;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import static java.lang.Boolean.TRUE;
+import com.google.gerrit.extensions.api.changes.DraftInput
+import com.google.gerrit.extensions.client.Comment
+import com.google.gerrit.extensions.client.Side
+import com.intellij.openapi.actionSystem.CommonShortcuts
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.SelectionModel
+import com.intellij.openapi.keymap.KeymapUtil
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.wm.IdeFocusManager
+import com.intellij.ui.EditorTextField
+import com.urswolfer.intellij.plugin.gerrit.ui.SafeHtmlTextEditor
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import java.awt.BorderLayout
+import java.awt.Dimension
+import java.awt.event.ActionEvent
+import javax.swing.*
+import kotlin.String
 
 /**
  * @author Urs Wolfer
@@ -44,138 +40,113 @@ import static java.lang.Boolean.TRUE;
  * Some parts based on code from:
  * https://github.com/ktisha/Crucible4IDEA
  */
-public class CommentForm extends JPanel {
-    private static final int BALLOON_WIDTH = 550;
-    private static final int BALLOON_HEIGHT = 300;
+class CommentForm(
+    project: Project?,
+    private val editor: Editor,
+    private val filePath: String,
+    private val commentSide: Side?,
+    private val commentToEdit: Comment?
+) : JPanel(BorderLayout()) {
+    private val resolvedCheckBox: JCheckBox
 
-    private final Editor editor;
-    private final String filePath;
-    private final Side commentSide;
-    private final Comment commentToEdit;
-    private final JCheckBox resolvedCheckBox;
+    private val reviewTextField: EditorTextField
+    private lateinit var balloon: JBPopup
+    var comment: DraftInput? = null
+        private set
 
-    private final EditorTextField reviewTextField;
-    private JBPopup balloon;
-    private DraftInput commentInput;
+    init {
+        val safeHtmlTextEditor = SafeHtmlTextEditor(project)
+        reviewTextField = safeHtmlTextEditor.messageField
+        add(safeHtmlTextEditor)
 
-    public CommentForm(Project project,
-                       Editor editor,
-                       String filePath,
-                       Side commentSide,
-                       Comment commentToEdit) {
-        super(new BorderLayout());
+        resolvedCheckBox = JCheckBox("Resolved")
 
-        this.filePath = filePath;
-        this.editor = editor;
-        this.commentSide = commentSide;
-        this.commentToEdit = commentToEdit;
+        addButtons()
 
-        SafeHtmlTextEditor safeHtmlTextEditor = new SafeHtmlTextEditor(project);
-        reviewTextField = safeHtmlTextEditor.getMessageField();
-        add(safeHtmlTextEditor);
+        reviewTextField.preferredSize = Dimension(BALLOON_WIDTH, BALLOON_HEIGHT)
 
-        resolvedCheckBox = new JCheckBox("Resolved");
-
-        addButtons();
-
-        reviewTextField.setPreferredSize(new Dimension(BALLOON_WIDTH, BALLOON_HEIGHT));
-
-        reviewTextField.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).
-                put(KeymapUtil.getKeyStroke(CommonShortcuts.CTRL_ENTER), "postComment");
-        reviewTextField.getActionMap().put("postComment", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                createCommentAndClose();
+        reviewTextField.getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeymapUtil.getKeyStroke(CommonShortcuts.CTRL_ENTER), "postComment")
+        reviewTextField.actionMap.put("postComment", object : AbstractAction() {
+            override fun actionPerformed(e: ActionEvent) {
+                createCommentAndClose()
             }
-        });
+        })
 
         if (commentToEdit != null) {
-            reviewTextField.setText(commentToEdit.message);
-            resolvedCheckBox.setSelected(!TRUE.equals(commentToEdit.unresolved));
+            reviewTextField.text = commentToEdit.message
+            resolvedCheckBox.isSelected = true != commentToEdit.unresolved
         }
     }
 
-    private void addButtons() {
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+    private fun addButtons() {
+        val buttonPanel = JPanel()
+        buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
 
-        JButton saveButton = new JButton("Save");
-        buttonPanel.add(saveButton);
-        saveButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                createCommentAndClose();
-            }
-        });
+        val saveButton = JButton("Save")
+        buttonPanel.add(saveButton)
+        saveButton.addActionListener { createCommentAndClose() }
 
-        buttonPanel.add(resolvedCheckBox);
+        buttonPanel.add(resolvedCheckBox)
 
-        buttonPanel.add(Box.createHorizontalGlue());
+        buttonPanel.add(Box.createHorizontalGlue())
 
-        JButton cancelButton = new JButton("Cancel");
-        buttonPanel.add(cancelButton);
-        cancelButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                balloon.cancel();
-            }
-        });
+        val cancelButton = JButton("Cancel")
+        buttonPanel.add(cancelButton)
+        cancelButton.addActionListener { balloon.cancel() }
 
-        add(buttonPanel, BorderLayout.SOUTH);
+        add(buttonPanel, BorderLayout.SOUTH)
     }
 
-    private void createCommentAndClose() {
-        commentInput = createComment();
-        balloon.dispose();
+    private fun createCommentAndClose() {
+        comment = createComment()
+        balloon.dispose()
     }
 
-    private DraftInput createComment() {
-        DraftInput comment = new DraftInput();
+    private fun createComment(): DraftInput {
+        val comment = DraftInput()
 
-        comment.message = getText();
-        comment.path = PathUtils.ensureSlashSeparators(filePath);
-        comment.side = commentSide;
-        comment.unresolved = !resolvedCheckBox.isSelected();
+        comment.message = text
+        comment.path = PathUtils.ensureSlashSeparators(filePath)
+        comment.side = commentSide
+        comment.unresolved = !resolvedCheckBox.isSelected
 
-        SelectionModel selectionModel = editor.getSelectionModel();
+        val selectionModel = editor.selectionModel
         if (selectionModel.hasSelection()) {
-            comment.range = handleRangeComment(selectionModel);
-            comment.line = comment.range.endLine; // end line as per specification
+            comment.range = handleRangeComment(selectionModel)
+            comment.line = comment.range.endLine // end line as per specification
         } else {
-            comment.line = editor.getDocument().getLineNumber(editor.getCaretModel().getOffset()) + 1;
+            comment.line = editor.document.getLineNumber(editor.caretModel.offset) + 1
         }
 
         if (commentToEdit != null) { // preserve: the selection might not exist anymore but we should not loose it
-            comment.range = commentToEdit.range;
-            comment.line = commentToEdit.line;
-            comment.inReplyTo = commentToEdit.inReplyTo;
+            comment.range = commentToEdit.range
+            comment.line = commentToEdit.line
+            comment.inReplyTo = commentToEdit.inReplyTo
         }
 
-        return comment;
+        return comment
     }
 
-    @Override
-    public void requestFocus() {
-        IdeFocusManager.findInstanceByComponent(reviewTextField).requestFocus(reviewTextField, true);
+    override fun requestFocus() {
+        IdeFocusManager.findInstanceByComponent(reviewTextField).requestFocus(reviewTextField, true)
     }
 
-    @NotNull
-    public String getText() {
-        return reviewTextField.getText();
+    val text: String
+        get() = reviewTextField.text
+
+    fun setBalloon(balloon: JBPopup) {
+        this.balloon = balloon
     }
 
-    public void setBalloon(@NotNull final JBPopup balloon) {
-        this.balloon = balloon;
+    private fun handleRangeComment(selectionModel: SelectionModel): Comment.Range {
+        val startSelection = selectionModel.blockSelectionStarts[0]
+        val endSelection = selectionModel.blockSelectionEnds[0]
+        val charsSequence = editor.markupModel.document.charsSequence
+        return RangeUtils.textOffsetToRange(charsSequence, startSelection, endSelection)
     }
 
-    public DraftInput getComment() {
-        return commentInput;
-    }
-
-    private Comment.Range handleRangeComment(SelectionModel selectionModel) {
-        int startSelection = selectionModel.getBlockSelectionStarts()[0];
-        int endSelection = selectionModel.getBlockSelectionEnds()[0];
-        CharSequence charsSequence = editor.getMarkupModel().getDocument().getCharsSequence();
-        return RangeUtils.textOffsetToRange(charsSequence, startSelection, endSelection);
+    companion object {
+        private const val BALLOON_WIDTH = 550
+        private const val BALLOON_HEIGHT = 300
     }
 }

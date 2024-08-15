@@ -14,23 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.inject.Inject;
-import com.intellij.openapi.options.Configurable;
-import com.intellij.openapi.options.ConfigurationException;
-import com.intellij.openapi.options.SearchableConfigurable;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Comparing;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.vcs.VcsConfigurableProvider;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
+import com.google.inject.Inject
+import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.options.ConfigurationException
+import com.intellij.openapi.options.SearchableConfigurable
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Comparing
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vcs.VcsConfigurableProvider
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import javax.swing.JComponent
 
 /**
  * Parts based on org.jetbrains.plugins.github.ui.GithubSettingsConfigurable
@@ -38,177 +34,161 @@ import javax.swing.*;
  * @author oleg
  * @author Urs Wolfer
  */
-public class GerritSettingsConfigurable implements SearchableConfigurable, VcsConfigurableProvider {
-    public static final String NAME = "Gerrit";
-    private static final String DEFAULT_PASSWORD_TEXT = "************";
-    private SettingsPanel settingsPane;
+open class GerritSettingsConfigurable : SearchableConfigurable, VcsConfigurableProvider {
+    private var settingsPane: SettingsPanel? = null
 
     @Inject
-    private GerritSettings gerritSettings;
+    private lateinit var gerritSettings: GerritSettings
+
     @Inject
-    private GerritUpdatesNotificationComponent gerritUpdatesNotificationComponent;
+    private lateinit var gerritUpdatesNotificationComponent: GerritUpdatesNotificationComponent
 
-    @NotNull
-    public String getDisplayName() {
-        return NAME;
+    override fun getDisplayName(): String {
+        return NAME
     }
 
-    @NotNull
-    public String getHelpTopic() {
-        return "settings.gerrit";
+    override fun getHelpTopic(): String {
+        return "settings.gerrit"
     }
 
-    public JComponent createComponent() {
+    override fun createComponent(): JComponent? {
         if (settingsPane == null) {
-            settingsPane = GerritModule.getInstance(SettingsPanel.class);
+            settingsPane = GerritModule.getInstance<SettingsPanel>()
         }
-        return settingsPane.getPanel();
+        return settingsPane!!.panel
     }
 
-    public boolean isModified() {
-        return settingsPane != null && (!Comparing.equal(gerritSettings.getLogin(), settingsPane.getLogin(), true) ||
-                isPasswordModified() ||
-                !Comparing.equal(gerritSettings.getHost(), settingsPane.getHost(), true) ||
-                !Comparing.equal(gerritSettings.getAutomaticRefresh(), settingsPane.getAutomaticRefresh()) ||
-                !Comparing.equal(gerritSettings.getListAllChanges(), settingsPane.getListAllChanges()) ||
-                !Comparing.equal(gerritSettings.getRefreshTimeout(), settingsPane.getRefreshTimeout()) ||
-                !Comparing.equal(gerritSettings.getReviewNotifications(), settingsPane.getReviewNotifications()) ||
-                !Comparing.equal(gerritSettings.getPushToGerrit(), settingsPane.getPushToGerrit()) ||
-                !Comparing.equal(gerritSettings.getShowChangeNumberColumn(), settingsPane.getShowChangeNumberColumn()) ||
-                !Comparing.equal(gerritSettings.getShowChangeIdColumn(), settingsPane.getShowChangeIdColumn()) ||
-                !Comparing.equal(gerritSettings.getShowTopicColumn(), settingsPane.getShowTopicColumn()) ||
-                !Comparing.equal(gerritSettings.getShowProjectColumn(), settingsPane.getShowProjectColumn()) ||
-                !Comparing.equal(gerritSettings.getCloneBaseUrl(), settingsPane.getCloneBaseUrl(), true) ||
-                !Comparing.equal(gerritSettings.getForceDefaultBranch(), settingsPane.getForceDefaultBranch()));
+    override fun isModified(): Boolean {
+        return settingsPane?.let {
+            !Comparing.equal(gerritSettings.login, it.login, true) ||
+                isPasswordModified ||
+                !Comparing.equal(gerritSettings.host, it.host, true) ||
+                !Comparing.equal(gerritSettings.automaticRefresh, it.automaticRefresh) ||
+                !Comparing.equal(gerritSettings.listAllChanges, it.listAllChanges) ||
+                !Comparing.equal(gerritSettings.refreshTimeout, it.refreshTimeout) ||
+                !Comparing.equal(gerritSettings.reviewNotifications, it.reviewNotifications) ||
+                !Comparing.equal(gerritSettings.pushToGerrit, it.pushToGerrit) ||
+                !Comparing.equal(gerritSettings.showChangeNumberColumn, it.showChangeNumberColumn) ||
+                !Comparing.equal(gerritSettings.showChangeIdColumn, it.showChangeIdColumn) ||
+                !Comparing.equal(gerritSettings.showTopicColumn, it.showTopicColumn) ||
+                !Comparing.equal(gerritSettings.showProjectColumn, it.showProjectColumn) ||
+                !Comparing.equal(gerritSettings.cloneBaseUrl, it.cloneBaseUrl, true) ||
+                !Comparing.equal(gerritSettings.forceDefaultBranch, it.forceDefaultBranch)
+        } ?: false
     }
 
-    private boolean isPasswordModified() {
-        return settingsPane.isPasswordModified();
-    }
+    private val isPasswordModified: Boolean
+        get() = settingsPane!!.isPasswordModified
 
-    public void apply() throws ConfigurationException {
-        if (settingsPane != null) {
-            gerritSettings.setLogin(settingsPane.getLogin());
-            if (isPasswordModified()) {
-                gerritSettings.setPassword(settingsPane.getPassword());
-                settingsPane.resetPasswordModification();
+    @Throws(ConfigurationException::class)
+    override fun apply() {
+        settingsPane?.let {
+            gerritSettings.setLogin(it.login)
+            if (isPasswordModified) {
+                gerritSettings.setPassword(it.password)
+                it.resetPasswordModification()
             }
-            gerritSettings.setHost(settingsPane.getHost());
-            gerritSettings.setListAllChanges(settingsPane.getListAllChanges());
-            gerritSettings.setAutomaticRefresh(settingsPane.getAutomaticRefresh());
-            gerritSettings.setRefreshTimeout(settingsPane.getRefreshTimeout());
-            gerritSettings.setReviewNotifications(settingsPane.getReviewNotifications());
-            gerritSettings.setPushToGerrit(settingsPane.getPushToGerrit());
-            gerritSettings.setShowChangeNumberColumn(settingsPane.getShowChangeNumberColumn());
-            gerritSettings.setShowChangeIdColumn(settingsPane.getShowChangeIdColumn());
-            gerritSettings.setShowTopicColumn(settingsPane.getShowTopicColumn());
-            gerritSettings.setShowProjectColumn(settingsPane.getShowProjectColumn());
-            gerritSettings.setCloneBaseUrl(settingsPane.getCloneBaseUrl());
-            gerritSettings.setForceDefaultBranch(settingsPane.getForceDefaultBranch());
+            gerritSettings.host = it.host
+            gerritSettings.listAllChanges = it.listAllChanges
+            gerritSettings.automaticRefresh = it.automaticRefresh
+            gerritSettings.refreshTimeout = it.refreshTimeout
+            gerritSettings.reviewNotifications = it.reviewNotifications
+            gerritSettings.pushToGerrit = it.pushToGerrit
+            gerritSettings.showChangeNumberColumn = it.showChangeNumberColumn
+            gerritSettings.showChangeIdColumn = it.showChangeIdColumn
+            gerritSettings.showTopicColumn = it.showTopicColumn
+            gerritSettings.showProjectColumn = it.showProjectColumn
+            gerritSettings.cloneBaseUrl = it.cloneBaseUrl
+            gerritSettings.forceDefaultBranch = it.forceDefaultBranch
 
-            gerritUpdatesNotificationComponent.handleConfigurationChange();
+            gerritUpdatesNotificationComponent.handleConfigurationChange()
         }
     }
 
-    public void reset() {
-        if (settingsPane != null) {
-            String login = gerritSettings.getLogin();
-            settingsPane.setLogin(login);
-            settingsPane.setPassword(StringUtil.isEmptyOrSpaces(login) ? "" : DEFAULT_PASSWORD_TEXT);
-            settingsPane.resetPasswordModification();
-            settingsPane.setHost(gerritSettings.getHost());
-            settingsPane.setListAllChanges(gerritSettings.getListAllChanges());
-            settingsPane.setAutomaticRefresh(gerritSettings.getAutomaticRefresh());
-            settingsPane.setRefreshTimeout(gerritSettings.getRefreshTimeout());
-            settingsPane.setReviewNotifications(gerritSettings.getReviewNotifications());
-            settingsPane.setPushToGerrit(gerritSettings.getPushToGerrit());
-            settingsPane.setShowChangeNumberColumn(gerritSettings.getShowChangeNumberColumn());
-            settingsPane.setShowChangeIdColumn(gerritSettings.getShowChangeIdColumn());
-            settingsPane.setShowTopicColumn(gerritSettings.getShowTopicColumn());
-            settingsPane.setShowProjectColumn(gerritSettings.getShowProjectColumn());
-            settingsPane.setCloneBaseUrl(gerritSettings.getCloneBaseUrl());
-            settingsPane.setForceDefaultBranch(gerritSettings.getForceDefaultBranch());
+    override fun reset() {
+        settingsPane?.let {
+            val login = gerritSettings.login
+            it.login = login
+            it.password = if (StringUtil.isEmptyOrSpaces(login)) "" else DEFAULT_PASSWORD_TEXT
+            it.resetPasswordModification()
+            it.host = gerritSettings.host
+            it.listAllChanges = gerritSettings.listAllChanges
+            it.automaticRefresh = gerritSettings.automaticRefresh
+            it.refreshTimeout = gerritSettings.refreshTimeout
+            it.reviewNotifications = gerritSettings.reviewNotifications
+            it.pushToGerrit = gerritSettings.pushToGerrit
+            it.showChangeNumberColumn = gerritSettings.showChangeNumberColumn
+            it.showChangeIdColumn = gerritSettings.showChangeIdColumn
+            it.showTopicColumn = gerritSettings.showTopicColumn
+            it.showProjectColumn = gerritSettings.showProjectColumn
+            it.cloneBaseUrl = gerritSettings.cloneBaseUrl
+            it.forceDefaultBranch = gerritSettings.forceDefaultBranch
         }
     }
 
-    public void disposeUIResources() {
-        settingsPane = null;
+    override fun disposeUIResources() {
+        settingsPane = null
     }
 
-    @NotNull
-    public String getId() {
-        return getHelpTopic();
+    override fun getId(): String {
+        return helpTopic
     }
 
-    public Runnable enableSearch(String option) {
-        return null;
+    override fun enableSearch(option: String): Runnable? {
+        return null
     }
 
-    @Nullable
-    @Override
-    public Configurable getConfigurable(Project project) {
-        return this;
+    override fun getConfigurable(project: Project): Configurable? {
+        return this
     }
 
-    public static class Proxy extends GerritSettingsConfigurable {
-        private GerritSettingsConfigurable delegate;
+    class Proxy : GerritSettingsConfigurable() {
+        private val delegate: GerritSettingsConfigurable = GerritModule.getInstance<GerritSettingsConfigurable>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(GerritSettingsConfigurable.class);
+        override fun getDisplayName(): String {
+            return delegate.displayName
         }
 
-        @Override
-        @NotNull
-        public String getDisplayName() {
-            return delegate.getDisplayName();
+        override fun getHelpTopic(): String {
+            return delegate.helpTopic
         }
 
-        @Override
-        @NotNull
-        public String getHelpTopic() {
-            return delegate.getHelpTopic();
+        override fun createComponent(): JComponent? {
+            return delegate.createComponent()
         }
 
-        @Override
-        public JComponent createComponent() {
-            return delegate.createComponent();
+        override fun isModified(): Boolean {
+            return delegate.isModified
         }
 
-        @Override
-        public boolean isModified() {
-            return delegate.isModified();
+        @Throws(ConfigurationException::class)
+        override fun apply() {
+            delegate.apply()
         }
 
-        @Override
-        public void apply() throws ConfigurationException {
-            delegate.apply();
+        override fun reset() {
+            delegate.reset()
         }
 
-        @Override
-        public void reset() {
-            delegate.reset();
+        override fun disposeUIResources() {
+            delegate.disposeUIResources()
         }
 
-        @Override
-        public void disposeUIResources() {
-            delegate.disposeUIResources();
+        override fun getId(): String {
+            return delegate.id
         }
 
-        @Override
-        @NotNull
-        public String getId() {
-            return delegate.getId();
+        override fun enableSearch(option: String): Runnable? {
+            return delegate.enableSearch(option)
         }
 
-        @Override
-        public Runnable enableSearch(String option) {
-            return delegate.enableSearch(option);
+        override fun getConfigurable(project: Project): Configurable? {
+            return delegate.getConfigurable(project)
         }
+    }
 
-        @Nullable
-        @Override
-        public Configurable getConfigurable(Project project) {
-            return delegate.getConfigurable(project);
-        }
+    companion object {
+        const val NAME: String = "Gerrit"
+        private const val DEFAULT_PASSWORD_TEXT = "************"
     }
 }

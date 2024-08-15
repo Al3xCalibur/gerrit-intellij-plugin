@@ -14,146 +14,131 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.common.base.Strings;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.dvcs.repo.VcsRepositoryManager;
-import com.intellij.dvcs.repo.VcsRepositoryMappingListener;
-import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.ActionToolbar;
-import com.intellij.openapi.actionSystem.Constraints;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Separator;
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.SimpleToolWindowPanel;
-import com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser;
-import com.intellij.ui.JBSplitter;
-import com.intellij.ui.OnePixelSplitter;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.rest.LoadChangesProxy;
-import com.urswolfer.intellij.plugin.gerrit.ui.filter.ChangesFilter;
-import com.urswolfer.intellij.plugin.gerrit.ui.filter.GerritChangesFilters;
-import git4idea.GitUtil;
-import git4idea.repo.GitRepository;
-
-import javax.swing.*;
-import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import com.google.common.base.Strings
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.inject.Inject
+import com.intellij.dvcs.repo.VcsRepositoryManager
+import com.intellij.dvcs.repo.VcsRepositoryMappingListener
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.SimpleToolWindowPanel
+import com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser
+import com.intellij.ui.JBSplitter
+import com.intellij.ui.OnePixelSplitter
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.rest.LoadChangesProxy
+import com.urswolfer.intellij.plugin.gerrit.ui.filter.GerritChangesFilters
+import git4idea.GitUtil
+import java.util.*
 
 /**
  * @author Urs Wolfer
  * @author Konrad Dobrzynski
  */
-public class GerritToolWindow {
-    @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private GerritSettings gerritSettings;
-    @Inject
-    private GerritChangeListPanel changeListPanel;
-    @Inject
-    private Logger log;
-    @Inject
-    private GerritChangesFilters changesFilters;
-    @Inject
-    private RepositoryChangesBrowserProvider repositoryChangesBrowserProvider;
+class GerritToolWindow @Inject constructor(
+    private val gerritUtil: GerritUtil,
+    private val gerritSettings: GerritSettings,
+    private val changeListPanel: GerritChangeListPanel,
+    private val log: Logger,
+    private val changesFilters: GerritChangesFilters,
+    private val repositoryChangesBrowserProvider: RepositoryChangesBrowserProvider
+) {
+    private lateinit var detailsPanel: GerritChangeDetailsPanel
 
-    private GerritChangeDetailsPanel detailsPanel;
+    fun createToolWindowContent(project: Project): SimpleToolWindowPanel {
+        changeListPanel.setProject(project)
 
-    public SimpleToolWindowPanel createToolWindowContent(final Project project) {
-        changeListPanel.setProject(project);
+        val panel = SimpleToolWindowPanel(true, true)
 
-        SimpleToolWindowPanel panel = new SimpleToolWindowPanel(true, true);
+        val toolbar = createToolbar(project)
+        toolbar.setTargetComponent(changeListPanel)
+        panel.toolbar = toolbar.component
 
-        ActionToolbar toolbar = createToolbar(project);
-        toolbar.setTargetComponent(changeListPanel);
-        panel.setToolbar(toolbar.getComponent());
+        val repositoryChangesBrowser: CommittedChangesBrowser = repositoryChangesBrowserProvider.get(project, changeListPanel)
 
-        CommittedChangesBrowser repositoryChangesBrowser = repositoryChangesBrowserProvider.get(project, changeListPanel);
+        val detailsSplitter: JBSplitter = OnePixelSplitter(true, 0.6f)
+        detailsSplitter.splitterProportionKey = "Gerrit.ListDetailSplitter.Proportion"
+        detailsSplitter.setFirstComponent(changeListPanel)
 
-        JBSplitter detailsSplitter = new OnePixelSplitter(true, 0.6f);
-        detailsSplitter.setSplitterProportionKey("Gerrit.ListDetailSplitter.Proportion");
-        detailsSplitter.setFirstComponent(changeListPanel);
+        detailsPanel = GerritChangeDetailsPanel(project)
+        changeListPanel.addListSelectionListener { changeInfo: ChangeInfo -> changeSelected(changeInfo, project) }
+        val details = detailsPanel.component
+        detailsSplitter.secondComponent = details
 
-        detailsPanel = new GerritChangeDetailsPanel(project);
-        changeListPanel.addListSelectionListener(changeInfo -> changeSelected(changeInfo, project));
-        JPanel details = detailsPanel.getComponent();
-        detailsSplitter.setSecondComponent(details);
+        val horizontalSplitter: JBSplitter = OnePixelSplitter(false, 0.7f)
+        horizontalSplitter.splitterProportionKey = "Gerrit.DetailRepositoryChangeBrowser.Proportion"
+        horizontalSplitter.firstComponent = detailsSplitter
+        horizontalSplitter.secondComponent = repositoryChangesBrowser
 
-        JBSplitter horizontalSplitter = new OnePixelSplitter(false, 0.7f);
-        horizontalSplitter.setSplitterProportionKey("Gerrit.DetailRepositoryChangeBrowser.Proportion");
-        horizontalSplitter.setFirstComponent(detailsSplitter);
-        horizontalSplitter.setSecondComponent(repositoryChangesBrowser);
+        panel.setContent(horizontalSplitter)
 
-        panel.setContent(horizontalSplitter);
-
-        List<GitRepository> repositories = GitUtil.getRepositoryManager(project).getRepositories();
-        if (!repositories.isEmpty()) {
-            reloadChanges(project, false);
+        val repositories = GitUtil.getRepositoryManager(project).repositories
+        if (repositories.isNotEmpty()) {
+            reloadChanges(project, false)
         }
 
-        registerVcsChangeListener(project);
+        registerVcsChangeListener(project)
 
-        changeListPanel.showSetupHintWhenRequired(project);
+        changeListPanel.showSetupHintWhenRequired(project)
 
-        return panel;
+        return panel
     }
 
-    private void registerVcsChangeListener(final Project project) {
-        VcsRepositoryMappingListener vcsListener = new VcsRepositoryMappingListener() {
-            @Override
-            public void mappingChanged() {
-                reloadChanges(project, false);
-            }
-        };
-        project.getMessageBus().connect().subscribe(VcsRepositoryManager.VCS_REPOSITORY_MAPPING_UPDATED, vcsListener);
+    private fun registerVcsChangeListener(project: Project) {
+        val vcsListener = VcsRepositoryMappingListener { reloadChanges(project, false) }
+        project.messageBus.connect().subscribe(VcsRepositoryManager.VCS_REPOSITORY_MAPPING_UPDATED, vcsListener)
     }
 
-    private void changeSelected(ChangeInfo changeInfo, final Project project) {
-        gerritUtil.getChangeDetails(changeInfo._number, project, changeDetails -> detailsPanel.setData(changeDetails));
+    private fun changeSelected(changeInfo: ChangeInfo, project: Project) {
+        gerritUtil.getChangeDetails(
+            changeInfo._number,
+            project
+        ) { changeDetails: ChangeInfo -> detailsPanel.setData(changeDetails) }
     }
 
-    public void reloadChanges(final Project project, boolean requestSettingsIfNonExistent) {
-        getChanges(project, requestSettingsIfNonExistent, changeListPanel);
+    fun reloadChanges(project: Project?, requestSettingsIfNonExistent: Boolean) {
+        getChanges(project, requestSettingsIfNonExistent, changeListPanel)
     }
 
-    private void getChanges(Project project, boolean requestSettingsIfNonExistent, Consumer<LoadChangesProxy> consumer) {
-        String apiUrl = gerritSettings.getHost();
+    private fun getChanges(
+        project: Project?,
+        requestSettingsIfNonExistent: Boolean,
+        consumer: Consumer<LoadChangesProxy>
+    ) {
+        val apiUrl = gerritSettings.host
         if (Strings.isNullOrEmpty(apiUrl)) {
             if (requestSettingsIfNonExistent) {
-                final LoginDialog dialog = new LoginDialog(project, gerritSettings, gerritUtil, log);
-                dialog.show();
-                if (!dialog.isOK()) {
-                    return;
+                val dialog = LoginDialog(project, gerritSettings, gerritUtil, log)
+                dialog.show()
+                if (!dialog.isOK) {
+                    return
                 }
             } else {
-                return;
+                return
             }
         }
-        gerritUtil.getChangesForProject(changesFilters.getQuery(), project, consumer);
+        gerritUtil.getChangesForProject(changesFilters.query, project, consumer)
     }
 
-    private ActionToolbar createToolbar(final Project project) {
-        DefaultActionGroup groupFromConfig = (DefaultActionGroup) ActionManager.getInstance().getAction("Gerrit.Toolbar");
-        DefaultActionGroup group = new DefaultActionGroup(groupFromConfig); // copy required (otherwise config action group gets modified)
+    private fun createToolbar(project: Project): ActionToolbar {
+        val groupFromConfig = ActionManager.getInstance().getAction("Gerrit.Toolbar") as DefaultActionGroup
+        val group = DefaultActionGroup(groupFromConfig) // copy required (otherwise config action group gets modified)
 
-        DefaultActionGroup filterGroup = new DefaultActionGroup();
-        Iterable<ChangesFilter> filters = changesFilters.getFilters();
-        for (ChangesFilter filter : filters) {
-            filterGroup.add(filter.getAction(project));
+        val filterGroup = DefaultActionGroup()
+        val filters = changesFilters.filters
+        for (filter in filters) {
+            filterGroup.add(filter.getAction(project))
         }
-        filterGroup.add(new Separator());
-        group.add(filterGroup, Constraints.FIRST);
+        filterGroup.add(Separator())
+        group.add(filterGroup, Constraints.FIRST)
 
-        changesFilters.addObserver((observable, o) -> reloadChanges(project, true));
+        changesFilters.addObserver { observable: Observable?, o: Any? -> reloadChanges(project, true) }
 
-        return ActionManager.getInstance().createActionToolbar("Gerrit.Toolbar", group, true);
+        return ActionManager.getInstance().createActionToolbar("Gerrit.Toolbar", group, true)
     }
 }

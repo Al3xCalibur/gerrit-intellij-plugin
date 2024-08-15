@@ -13,34 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.inject.Inject;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-
-import javax.swing.*;
+import com.google.inject.Inject
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
+import javax.swing.Icon
 
 /**
  * @author Thomas Forrer
  */
-public class ReviewActionFactory {
-    @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private GerritSettings gerritSettings;
-    @Inject
-    private SubmitAction submitAction;
-    @Inject
-    private SelectedRevisions selectedRevisions;
-    @Inject
-    private NotificationService notificationService;
-
-    public ReviewAction get(String label, int rating, Icon icon, boolean showDialog) {
-        return new ReviewAction(label, rating, icon, showDialog,
-                selectedRevisions, gerritUtil, submitAction, notificationService, gerritSettings);
+class ReviewActionFactory @Inject constructor(
+    private val gerritUtil: GerritUtil,
+    private val gerritSettings: GerritSettings,
+    private val submitAction: SubmitAction,
+    private val selectedRevisions: SelectedRevisions,
+    private val notificationService: NotificationService
+) {
+    fun get(label: String, rating: Int, icon: Icon?, showDialog: Boolean): ReviewAction {
+        return ReviewAction(
+            label, rating, icon, showDialog,
+            selectedRevisions, gerritUtil, submitAction, notificationService, gerritSettings
+        )
     }
 }

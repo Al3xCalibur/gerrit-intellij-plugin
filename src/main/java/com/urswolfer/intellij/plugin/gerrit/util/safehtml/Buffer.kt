@@ -11,26 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package com.urswolfer.intellij.plugin.gerrit.util.safehtml;
+package com.urswolfer.intellij.plugin.gerrit.util.safehtml
 
 // based on: https://gerrit.googlesource.com/gerrit/+/master/gerrit-gwtexpui/src/main/java/com/google/gwtexpui/safehtml/client/
 
 interface Buffer {
-  void append(boolean v);
+    fun append(v: Boolean)
 
-  void append(char v);
+    fun append(v: Char)
 
-  void append(int v);
+    fun append(v: Int)
 
-  void append(long v);
+    fun append(v: Long)
 
-  void append(float v);
+    fun append(v: Float)
 
-  void append(double v);
+    fun append(v: Double)
 
-  void append(String v);
+    fun append(v: String?)
 
-  @Override
-  String toString();
+    override fun toString(): String
 }

@@ -13,38 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.intellij.openapi.project.DumbAware;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-
-import javax.swing.*;
+import com.google.common.base.Optional
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.inject.Inject
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.UpdateInBackground
+import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.Project
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import javax.swing.Icon
 
 /**
  * @author Urs Wolfer
  */
-public abstract class AbstractChangeAction extends AnAction implements DumbAware, UpdateInBackground {
+abstract class AbstractChangeAction(text: String?, description: String?, icon: Icon?) :
+    AnAction(text, description, icon), DumbAware, UpdateInBackground {
     @Inject
-    protected GerritUtil gerritUtil;
+    protected lateinit var gerritUtil: GerritUtil
 
-    public AbstractChangeAction(String text, String description, Icon icon) {
-        super(text, description, icon);
+    protected fun getSelectedChange(anActionEvent: AnActionEvent): ChangeInfo? {
+        return ActionUtil.getSelectedChange(anActionEvent)
     }
 
-    protected Optional<ChangeInfo> getSelectedChange(AnActionEvent anActionEvent) {
-        return ActionUtil.getSelectedChange(anActionEvent);
-    }
-
-    protected void getChangeDetail(ChangeInfo selectedChange, Project project, final Consumer<ChangeInfo> consumer) {
-        gerritUtil.getChangeDetails(selectedChange._number, project, consumer);
+    protected fun getChangeDetail(selectedChange: ChangeInfo, project: Project?, consumer: Consumer<ChangeInfo>) {
+        gerritUtil.getChangeDetails(selectedChange._number, project, consumer)
     }
 }

@@ -13,30 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
-package com.urswolfer.intellij.plugin.gerrit.ui.diff;
-
-import com.google.gerrit.extensions.api.changes.DraftInput;
-import com.google.gerrit.extensions.client.Comment;
-import com.google.gerrit.extensions.client.Side;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.CommentInfo;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.editor.markup.RangeHighlighter;
-import com.intellij.openapi.project.DumbAware;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.popup.JBPopup;
-import com.intellij.openapi.ui.popup.JBPopupListener;
-import com.intellij.openapi.ui.popup.LightweightWindowEvent;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-
-import javax.swing.*;
+import com.google.gerrit.extensions.api.changes.DraftInput
+import com.google.gerrit.extensions.client.Comment
+import com.google.gerrit.extensions.client.Side
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.CommentInfo
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.actionSystem.UpdateInBackground
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.markup.RangeHighlighter
+import com.intellij.openapi.project.DumbAware
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import javax.swing.Icon
 
 /**
  * @author Urs Wolfer
@@ -44,106 +40,72 @@ import javax.swing.*;
  * Some parts based on code from:
  * https://github.com/ktisha/Crucible4IDEA
  */
-@SuppressWarnings("ComponentNotRegistered") // added with code
-public class AddCommentAction extends AnAction implements DumbAware, UpdateInBackground {
-
-    private final Editor editor;
-    private final CommentsDiffTool commentsDiffTool;
-    private final GerritUtil gerritUtil;
-    private final GerritSettings gerritSettings;
-    private final ChangeInfo changeInfo;
-    private final String revisionId;
-    private final String filePath;
-    private final CommentBalloonBuilder commentBalloonBuilder;
-    private final Side commentSide;
-    private final Comment commentToEdit;
-    private final RangeHighlighter lineHighlighter;
-    private final RangeHighlighter rangeHighlighter;
-    private final Comment replyToComment;
-
-    public AddCommentAction(String label,
-                            Icon icon,
-                            CommentsDiffTool commentsDiffTool,
-                            GerritUtil gerritUtil,
-                            GerritSettings gerritSettings,
-                            Editor editor,
-                            CommentBalloonBuilder commentBalloonBuilder,
-                            ChangeInfo changeInfo,
-                            String revisionId,
-                            String filePath,
-                            Side commentSide,
-                            Comment commentToEdit,
-                            RangeHighlighter lineHighlighter,
-                            RangeHighlighter rangeHighlighter,
-                            Comment replyToComment) {
-        super(label, null, icon);
-
-        this.commentsDiffTool = commentsDiffTool;
-        this.gerritUtil = gerritUtil;
-        this.gerritSettings = gerritSettings;
-        this.changeInfo = changeInfo;
-        this.revisionId = revisionId;
-        this.filePath = filePath;
-        this.editor = editor;
-        this.commentBalloonBuilder = commentBalloonBuilder;
-        this.commentSide = commentSide;
-        this.commentToEdit = commentToEdit;
-        this.lineHighlighter = lineHighlighter;
-        this.rangeHighlighter = rangeHighlighter;
-        this.replyToComment = replyToComment;
+// added with code
+class AddCommentAction(
+    label: String?,
+    icon: Icon?,
+    private val commentsDiffTool: CommentsDiffTool?,
+    private val gerritUtil: GerritUtil?,
+    private val gerritSettings: GerritSettings?,
+    private val editor: Editor?,
+    private val commentBalloonBuilder: CommentBalloonBuilder?,
+    private val changeInfo: ChangeInfo?,
+    private val revisionId: String?,
+    private val filePath: String?,
+    private val commentSide: Side?,
+    private val commentToEdit: Comment?,
+    private val lineHighlighter: RangeHighlighter?,
+    private val rangeHighlighter: RangeHighlighter?,
+    private val replyToComment: Comment?
+) : AnAction(label, null, icon), DumbAware, UpdateInBackground {
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.getData(PlatformDataKeys.PROJECT) ?: return
+        addVersionedComment(project)
     }
 
-    public void actionPerformed(AnActionEvent e) {
-        final Project project = e.getData(PlatformDataKeys.PROJECT);
-        if (project == null) return;
-        addVersionedComment(project);
+    override fun update(e: AnActionEvent) {
+        e.presentation.isEnabled = gerritSettings!!.isLoginAndPasswordAvailable
     }
 
-    @Override
-    public void update(AnActionEvent e) {
-        e.getPresentation().setEnabled(gerritSettings.isLoginAndPasswordAvailable());
-    }
+    private fun addVersionedComment(project: Project) {
+        if (editor == null || filePath == null) return
 
-    private void addVersionedComment(final Project project) {
-        if (editor == null || filePath == null) return;
+        val commentForm = CommentForm(project, editor, filePath, commentSide, commentToEdit)
+        val balloon = commentBalloonBuilder!!.getNewCommentBalloon(commentForm, "Comment")
+        balloon!!.addListener(object : JBPopupListener {
+            override fun beforeShown(lightweightWindowEvent: LightweightWindowEvent) {}
 
-        final CommentForm commentForm = new CommentForm(project, editor, filePath, commentSide, commentToEdit);
-        final JBPopup balloon = commentBalloonBuilder.getNewCommentBalloon(commentForm, "Comment");
-        balloon.addListener(new JBPopupListener() {
-            @Override
-            public void beforeShown(LightweightWindowEvent lightweightWindowEvent) {}
-
-            @Override
-            public void onClosed(LightweightWindowEvent event) {
-                DraftInput comment = commentForm.getComment();
+            override fun onClosed(event: LightweightWindowEvent) {
+                val comment = commentForm.comment
                 if (comment != null) {
-                    handleComment(comment, project);
+                    handleComment(comment, project)
                 }
             }
-        });
-        commentForm.setBalloon(balloon);
-        balloon.showInBestPositionFor(editor);
-        commentForm.requestFocus();
+        })
+        commentForm.setBalloon(balloon)
+        balloon.showInBestPositionFor(editor)
+        commentForm.requestFocus()
     }
 
-    private void handleComment(final DraftInput comment, final Project project) {
+    private fun handleComment(comment: DraftInput, project: Project) {
         if (commentToEdit != null) {
-            comment.id = commentToEdit.id;
+            comment.id = commentToEdit.id
         }
 
         if (replyToComment != null) {
-            comment.inReplyTo = replyToComment.id;
-            comment.side = replyToComment.side;
-            comment.line = replyToComment.line;
-            comment.range = replyToComment.range;
+            comment.inReplyTo = replyToComment.id
+            comment.side = replyToComment.side
+            comment.line = replyToComment.line
+            comment.range = replyToComment.range
         }
 
-        gerritUtil.saveDraftComment(changeInfo._number, revisionId, comment, project,
-            commentInfo -> {
-                if (commentToEdit != null) {
-                    commentsDiffTool.removeComment(project, editor, lineHighlighter, rangeHighlighter);
-                }
-                commentsDiffTool.addComment(editor, changeInfo, revisionId, project, commentInfo);
-            });
+        gerritUtil!!.saveDraftComment(
+            changeInfo!!._number, revisionId, comment, project
+        ) { commentInfo: CommentInfo ->
+            if (commentToEdit != null) {
+                commentsDiffTool!!.removeComment(project, editor, lineHighlighter, rangeHighlighter)
+            }
+            commentsDiffTool!!.addComment(editor, changeInfo, revisionId, project, commentInfo)
+        }
     }
 }

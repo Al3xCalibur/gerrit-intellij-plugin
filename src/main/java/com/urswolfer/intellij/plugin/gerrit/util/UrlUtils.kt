@@ -13,45 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.net.URI
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 /**
  * @author Urs Wolfer
  */
-public class UrlUtils {
-
-    private UrlUtils() {}
-
-    public static boolean urlHasSameHost(String url, String hostUrl) {
-        String host = URI.create(hostUrl).getHost();
-        String repositoryHost = UrlUtils.createUriFromGitConfigString(url).getHost();
-        return repositoryHost != null && repositoryHost.equals(host);
+object UrlUtils {
+    @JvmStatic
+    fun urlHasSameHost(url: String?, hostUrl: String): Boolean {
+        val host = URI.create(hostUrl).host
+        val repositoryHost = createUriFromGitConfigString(url).host
+        return repositoryHost != null && repositoryHost == host
     }
 
-    public static URI createUriFromGitConfigString(String gitConfigUrl) {
-        if (!gitConfigUrl.contains("://")) { // some urls do not contain a protocol; just add something so it will not fail with parsing
-            gitConfigUrl = "git://" + gitConfigUrl;
+    @JvmStatic
+    fun createUriFromGitConfigString(gitConfigUrl: String?): URI {
+        var gitConfigUrl = gitConfigUrl
+        if (!gitConfigUrl!!.contains("://")) { // some urls do not contain a protocol; just add something so it will not fail with parsing
+            gitConfigUrl = "git://$gitConfigUrl"
         }
-        gitConfigUrl = gitConfigUrl.replace(" ", "%20");
-        gitConfigUrl = gitConfigUrl.replace("\\", "/");
-        return URI.create(gitConfigUrl);
+        gitConfigUrl = gitConfigUrl.replace(" ", "%20")
+        gitConfigUrl = gitConfigUrl.replace("\\", "/")
+        return URI.create(gitConfigUrl)
     }
 
-    public static String stripGitExtension(String url) {
-        return url.replace(".git", ""); // some repositories end their name with ".git"
+    fun stripGitExtension(url: String): String {
+        return url.replace(".git", "") // some repositories end their name with ".git"
     }
 
-    public static String encodePatchSetDescription(String text) {
+    @JvmStatic
+    fun encodePatchSetDescription(text: String?): String {
         // According to https://gerrit-review.googlesource.com/Documentation/user-upload.html#patch_set_description,
         // at least the chars %^@.~-+_:/! must be percent-encoded and the space character must be encoded as '+'
         return URLEncoder.encode(text, StandardCharsets.UTF_8)
             .replace(".", "%2E")
             .replace("-", "%96")
-            .replace("_", "%5E");
+            .replace("_", "%5E")
     }
 }

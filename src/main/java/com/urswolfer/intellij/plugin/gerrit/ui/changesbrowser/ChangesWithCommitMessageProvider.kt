@@ -13,47 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser
 
-package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser;
-
-import com.intellij.openapi.fileTypes.FileType;
-import com.intellij.openapi.fileTypes.PlainTextFileType;
-import com.intellij.openapi.vcs.FilePath;
-import com.intellij.openapi.vcs.RemoteFilePath;
-import com.intellij.openapi.vcs.changes.Change;
-import com.intellij.openapi.vcs.changes.SimpleContentRevision;
-import git4idea.GitCommit;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.Collection;
+import com.intellij.openapi.fileTypes.FileType
+import com.intellij.openapi.fileTypes.PlainTextFileType
+import com.intellij.openapi.vcs.FilePath
+import com.intellij.openapi.vcs.RemoteFilePath
+import com.intellij.openapi.vcs.changes.Change
+import com.intellij.openapi.vcs.changes.SimpleContentRevision
+import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.CommitDiffBuilder.ChangesProvider
+import git4idea.GitCommit
 
 /**
  * @author Thomas Forrer
  */
-public class ChangesWithCommitMessageProvider implements CommitDiffBuilder.ChangesProvider {
-
-    @Override
-    public Collection<Change> provide(GitCommit gitCommit) {
-        return getChangesWithCommitMessage(gitCommit);
+class ChangesWithCommitMessageProvider : ChangesProvider {
+    override fun provide(gitCommit: GitCommit): Collection<Change> {
+        return getChangesWithCommitMessage(gitCommit)
     }
 
-    private Collection<Change> getChangesWithCommitMessage(GitCommit gitCommit) {
-        Collection<Change> changes = gitCommit.getChanges();
+    private fun getChangesWithCommitMessage(gitCommit: GitCommit): Collection<Change> {
+        val changes = gitCommit.changes
 
-        String content = new CommitMessageFormatter(gitCommit).getLongCommitMessage();
-        FilePath commitMsg = new RemoteFilePath("/COMMIT_MSG", false) {
-            @NotNull
-            @Override
-            public FileType getFileType() {
-                return PlainTextFileType.INSTANCE;
+        val content = CommitMessageFormatter(gitCommit).longCommitMessage
+        val commitMsg: FilePath = object : RemoteFilePath("/COMMIT_MSG", false) {
+            override fun getFileType(): FileType {
+                return PlainTextFileType.INSTANCE
             }
-        };
+        }
 
-        changes.add(new Change(null, new SimpleContentRevision(
-            content,
-            commitMsg,
-            gitCommit.getId().asString()
-        )));
-        return changes;
+        changes.add(
+            Change(
+                null, SimpleContentRevision(
+                    content,
+                    commitMsg,
+                    gitCommit.id.asString()
+                )
+            )
+        )
+        return changes
     }
 }

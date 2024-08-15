@@ -15,49 +15,43 @@
  *  * limitations under the License.
  *
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.google.common.base.Optional;
-import com.google.inject.Inject;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import git4idea.repo.GitRepository;
-
-import java.io.File;
+import com.google.inject.Inject
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtil
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import java.io.File
 
 /**
  * @author Thomas Forrer
  */
-public class PathUtils {
-    @Inject
-    private GerritGitUtil gerritGitUtil;
-
-    public String getRelativePath(Project project, String absoluteFilePath, String gerritProjectName) {
-        Optional<GitRepository> gitRepositoryOptional = gerritGitUtil.getRepositoryForGerritProject(project, gerritProjectName);
-        if (!gitRepositoryOptional.isPresent()) return null;
-        GitRepository repository = gitRepositoryOptional.get();
-        VirtualFile root = repository.getRoot();
-        return FileUtil.getRelativePath(new File(root.getPath()), new File(absoluteFilePath));
+class PathUtils @Inject constructor(
+    private val gerritGitUtil: GerritGitUtil
+) {
+    fun getRelativePath(project: Project?, absoluteFilePath: String, gerritProjectName: String): String? {
+        val repository = gerritGitUtil.getRepositoryForGerritProject(project, gerritProjectName) ?: return null
+        val root = repository.root
+        return FileUtil.getRelativePath(File(root.path), File(absoluteFilePath))
     }
 
     /**
      * @return a relative path for all files under the project root, or the absolute path for other files
      */
-    public String getRelativeOrAbsolutePath(Project project, String absoluteFilePath, String gerritProjectName) {
-        String relativePath = getRelativePath(project, absoluteFilePath, gerritProjectName);
+    fun getRelativeOrAbsolutePath(project: Project?, absoluteFilePath: String, gerritProjectName: String): String? {
+        val relativePath = getRelativePath(project, absoluteFilePath, gerritProjectName)
         if (relativePath == null || relativePath.contains(File.separator + "..")) {
-            return absoluteFilePath;
+            return absoluteFilePath
         }
-        return relativePath;
+        return relativePath
     }
 
-    /**
-     * Gerrit handles paths always with a forward slash (/). Windows uses backslash (\), so we need to convert them.
-     */
-    public static String ensureSlashSeparators(String path) {
-        return path.replace('\\', '/');
+    companion object {
+        /**
+         * Gerrit handles paths always with a forward slash (/). Windows uses backslash (\), so we need to convert them.
+         */
+        fun ensureSlashSeparators(path: String?): String {
+            return path!!.replace('\\', '/')
+        }
     }
 }

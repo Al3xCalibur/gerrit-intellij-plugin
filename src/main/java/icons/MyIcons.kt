@@ -1,8 +1,10 @@
-package icons;
+package icons
 
-import com.intellij.openapi.util.IconLoader;
-import javax.swing.Icon;
+import com.intellij.openapi.util.IconLoader
+import javax.swing.Icon
 
-public interface MyIcons {
-    Icon Gerrit = IconLoader.getIcon("/icons/gerrit.svg", MyIcons.class);
+interface MyIcons {
+    companion object {
+        val Gerrit: Icon = IconLoader.getIcon("/icons/gerrit.svg", MyIcons::class.java)
+    }
 }

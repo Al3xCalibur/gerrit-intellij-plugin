@@ -14,18 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.extension
 
-package com.urswolfer.intellij.plugin.gerrit.extension;
-
-import com.google.inject.Inject;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.util.AuthData;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import git4idea.remote.GitHttpAuthDataProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.google.inject.Inject
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.util.AuthData
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import git4idea.remote.GitHttpAuthDataProvider
 
 /**
  * Parts based on org.jetbrains.plugins.github.extensions.GithubHttpAuthDataProvider
@@ -33,51 +30,37 @@ import org.jetbrains.annotations.Nullable;
  * @author Urs Wolfer
  * @author Kirill Likhodedov
  */
-public class GerritHttpAuthDataProvider implements GitHttpAuthDataProvider {
-
-    @Inject
-    private GerritSettings gerritSettings;
-
-    @Override
-    public @Nullable AuthData getAuthData(@NotNull Project project, @NotNull String url) {
-        if (!gerritSettings.getHost().equalsIgnoreCase(url)) {
-            return null;
+class GerritHttpAuthDataProvider @Inject constructor(private val gerritSettings: GerritSettings) : GitHttpAuthDataProvider {
+    override fun getAuthData(project: Project, url: String): AuthData? {
+        if (!gerritSettings.host.equals(url, ignoreCase = true)) {
+            return null
         }
-        String password = gerritSettings.getPassword();
-        if (StringUtil.isEmptyOrSpaces(gerritSettings.getLogin()) || StringUtil.isEmptyOrSpaces(password)) {
-            return null;
+        val password = gerritSettings.password
+        if (StringUtil.isEmptyOrSpaces(gerritSettings.login) || StringUtil.isEmptyOrSpaces(password)) {
+            return null
         }
-        return new AuthData(gerritSettings.getLogin(), password);
+        return AuthData(gerritSettings.login, password)
     }
 
-    @Override
-    public void forgetPassword(@NotNull Project project, @NotNull String url, @NotNull AuthData authData) {
-        if (gerritSettings.getHost().equalsIgnoreCase(url)) {
-            gerritSettings.forgetPassword();
+    override fun forgetPassword(project: Project, url: String, authData: AuthData) {
+        if (gerritSettings.host.equals(url, ignoreCase = true)) {
+            gerritSettings.forgetPassword()
         }
     }
 
-    public static final class Proxy implements GitHttpAuthDataProvider {
-        private final GitHttpAuthDataProvider delegate;
+    class Proxy : GitHttpAuthDataProvider {
+        private val delegate: GitHttpAuthDataProvider = GerritModule.getInstance<GerritHttpAuthDataProvider>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(GerritHttpAuthDataProvider.class);
+        override fun getAuthData(project: Project, url: String): AuthData? {
+            return delegate.getAuthData(project, url)
         }
 
-        @Nullable
-        @Override
-        public AuthData getAuthData(@NotNull Project project, @NotNull String url) {
-            return delegate.getAuthData(project, url);
+        override fun getAuthData(project: Project, url: String, login: String): AuthData? {
+            return delegate.getAuthData(project, url, login)
         }
 
-        @Override
-        public @Nullable AuthData getAuthData(@NotNull Project project, @NotNull String url, @NotNull String login) {
-            return delegate.getAuthData(project, url, login);
-        }
-
-        @Override
-        public void forgetPassword(@NotNull Project project, @NotNull String url, @NotNull AuthData authData) {
-            delegate.forgetPassword(project, url, authData);
+        override fun forgetPassword(project: Project, url: String, authData: AuthData) {
+            delegate.forgetPassword(project, url, authData)
         }
     }
 }

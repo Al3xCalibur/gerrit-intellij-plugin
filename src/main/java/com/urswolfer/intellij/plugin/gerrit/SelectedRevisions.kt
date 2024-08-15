@@ -13,59 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit
 
-package com.urswolfer.intellij.plugin.gerrit;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.gerrit.extensions.common.ChangeInfo;
-
-import java.util.Map;
-import java.util.Observable;
-import java.util.Set;
+import com.google.common.base.Optional
+import com.google.common.collect.Iterables
+import com.google.common.collect.Maps
+import com.google.gerrit.extensions.common.ChangeInfo
+import java.util.*
 
 /**
  * Class keeping record of all selected revisions by change.
  *
  * @author Thomas Forrer
  */
-public class SelectedRevisions extends Observable {
-    private final Map<String, String> map = Maps.newHashMap();
+class SelectedRevisions : Observable() {
+    private val map: MutableMap<String?, String?> = Maps.newHashMap()
 
     /**
-     * @return the selected revision for the provided changeId, or {@link com.google.common.base.Optional#absent()} if
-     *         the current revision was selected.
+     * @return the selected revision for the provided changeId, or null if the current revision was selected.
      */
-    public Optional<String> get(String changeId) {
-        return Optional.fromNullable(map.get(changeId));
+    operator fun get(changeId: String?): String? {
+        return map[changeId]
     }
 
     /**
      * @return the selected revision for the provided change info object
      */
-    public String get(ChangeInfo changeInfo) {
-        String currentRevision = changeInfo.currentRevision;
+    operator fun get(changeInfo: ChangeInfo?): String? {
+        var currentRevision = changeInfo!!.currentRevision
         if (currentRevision == null && changeInfo.revisions != null) {
             // don't know why with some changes currentRevision is not set,
             // the revisions map however is usually populated
-            Set<String> revisionKeys = changeInfo.revisions.keySet();
-            if (!revisionKeys.isEmpty()) {
-                currentRevision = Iterables.getLast(revisionKeys);
+            val revisionKeys: Set<String> = changeInfo.revisions.keys
+            if (revisionKeys.isNotEmpty()) {
+                currentRevision = revisionKeys.last()
             }
         }
-        return get(changeInfo.id).or(Optional.fromNullable(currentRevision)).orNull();
+        return get(changeInfo.id) ?: currentRevision
     }
 
-    public void put(String changeId, String revisionHash) {
-        map.put(changeId, revisionHash);
-        setChanged();
-        notifyObservers(changeId);
+    operator fun set(changeId: String?, revisionHash: String?) {
+        map[changeId] = revisionHash
+        setChanged()
+        notifyObservers(changeId)
     }
 
-    public void clear() {
-        map.clear();
-        setChanged();
-        notifyObservers();
+    fun clear() {
+        map.clear()
+        setChanged()
+        notifyObservers()
     }
 }

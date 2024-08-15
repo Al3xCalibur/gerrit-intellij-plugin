@@ -13,35 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.ui.table.TableView;
-
-import java.awt.*;
+import com.google.common.base.Optional
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.ui.table.TableView
 
 /**
  * @author Urs Wolfer
  */
-public class ActionUtil {
-
-    private ActionUtil() {}
-
-    public static Optional<ChangeInfo> getSelectedChange(AnActionEvent anActionEvent) {
-        Component component = anActionEvent.getData(PlatformDataKeys.CONTEXT_COMPONENT);
-        if (!(component instanceof TableView)) {
-            return Optional.absent();
-        }
-        final TableView table = (TableView) component;
-        Object selectedObject = table.getSelectedObject();
-        if (!(selectedObject instanceof ChangeInfo)) {
-            return Optional.absent();
-        }
-        final ChangeInfo selectedChange = (ChangeInfo) selectedObject;
-        return Optional.of(selectedChange);
+object ActionUtil {
+    fun getSelectedChange(anActionEvent: AnActionEvent?): ChangeInfo? {
+        if (anActionEvent == null) return null
+        val component = anActionEvent.getData(PlatformDataKeys.CONTEXT_COMPONENT) as? TableView<*>
+            ?: return null
+        val selectedObject = component.selectedObject as? ChangeInfo
+            ?: return null
+        return selectedObject
     }
 }

@@ -13,59 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.ide.CopyPasteManager;
-import com.intellij.openapi.project.Project;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-
-import java.awt.datatransfer.StringSelection;
+import com.google.inject.Inject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.ide.CopyPasteManager
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import java.awt.datatransfer.StringSelection
 
 /**
  * @author Wurstmeister
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class CopyChangeIdAction extends AbstractChangeAction {
+// proxy class below is registered
+open class CopyChangeIdAction : AbstractChangeAction("Copy", "Copy Change-ID", AllIcons.Actions.Copy) {
     @Inject
-    private NotificationService notificationService;
+    private val notificationService: NotificationService? = null
 
-    public CopyChangeIdAction() {
-        super("Copy", "Copy Change-ID", AllIcons.Actions.Copy);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val changeDetails = getSelectedChange(anActionEvent) ?: return
+
+        val stringToCopy = changeDetails.changeId
+        CopyPasteManager.getInstance().setContents(StringSelection(stringToCopy))
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+        val builder = NotificationBuilder(project, "Copy", "Copied Change-ID to clipboard.")
+        notificationService!!.notify(builder)
     }
 
-    @Override
-    public void actionPerformed(final AnActionEvent anActionEvent) {
-        Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
-        }
-        ChangeInfo changeDetails = selectedChange.get();
-        String stringToCopy = changeDetails.changeId;
-        CopyPasteManager.getInstance().setContents(new StringSelection(stringToCopy));
-        Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
-        NotificationBuilder builder = new NotificationBuilder(project, "Copy", "Copied Change-ID to clipboard.");
-        notificationService.notify(builder);
-    }
+    class Proxy : CopyChangeIdAction() {
+        private val delegate: CopyChangeIdAction = GerritModule.getInstance<CopyChangeIdAction>()
 
-    public static class Proxy extends CopyChangeIdAction {
-        private final CopyChangeIdAction delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(CopyChangeIdAction.class);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

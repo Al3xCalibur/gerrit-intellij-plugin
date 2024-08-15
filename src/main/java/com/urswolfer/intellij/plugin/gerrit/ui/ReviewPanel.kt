@@ -13,62 +13,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.intellij.openapi.project.Project;
-import com.intellij.ui.EditorTextField;
-
-import javax.swing.*;
-import java.awt.*;
+import com.intellij.openapi.project.Project
+import com.intellij.ui.EditorTextField
+import java.awt.BorderLayout
+import javax.swing.*
 
 /**
  * @author Urs Wolfer
  */
-public class ReviewPanel extends JPanel {
-    private final EditorTextField messageField;
-    private final JCheckBox notifyCheckBox;
-    private final JCheckBox submitCheckBox;
+class ReviewPanel(project: Project?) : JPanel(BorderLayout()) {
+    private val messageField: EditorTextField
+    private val notifyCheckBox: JCheckBox
+    private val submitCheckBox: JCheckBox
 
-    public ReviewPanel(Project project) {
-        super(new BorderLayout());
+    init {
+        val editor = SafeHtmlTextEditor(project)
+        messageField = editor.messageField
+        add(editor, BorderLayout.CENTER)
 
-        SafeHtmlTextEditor editor = new SafeHtmlTextEditor(project);
-        messageField = editor.getMessageField();
-        add(editor, BorderLayout.CENTER);
+        val southPanel = JPanel()
+        val southLayout = BoxLayout(southPanel, BoxLayout.Y_AXIS)
+        southPanel.layout = southLayout
+        add(southPanel, BorderLayout.SOUTH)
 
-        JPanel southPanel = new JPanel();
-        BoxLayout southLayout = new BoxLayout(southPanel, BoxLayout.Y_AXIS);
-        southPanel.setLayout(southLayout);
-        add(southPanel, BorderLayout.SOUTH);
+        notifyCheckBox = JCheckBox("Send Notification Mails", true)
+        southPanel.add(notifyCheckBox)
 
-        notifyCheckBox = new JCheckBox("Send Notification Mails", true);
-        southPanel.add(notifyCheckBox);
+        submitCheckBox = JCheckBox("Submit Change")
+        southPanel.add(submitCheckBox)
 
-        submitCheckBox = new JCheckBox("Submit Change");
-        southPanel.add(submitCheckBox);
-
-        setBorder(BorderFactory.createEmptyBorder());
+        border = BorderFactory.createEmptyBorder()
     }
 
-    public void setMessage(final String message) {
-        messageField.setText(message);
-    }
+    var message: String?
+        get() = messageField.text.trim { it <= ' ' }
+        set(message) {
+            messageField.setText(message)
+        }
 
-    public String getMessage() {
-        return messageField.getText().trim();
-    }
+    val submitChange: Boolean
+        get() = submitCheckBox.isSelected
 
-    public boolean getSubmitChange() {
-        return submitCheckBox.isSelected();
-    }
+    val doNotify: Boolean
+        get() = notifyCheckBox.isSelected
 
-    public boolean getDoNotify() {
-        return notifyCheckBox.isSelected();
-    }
-
-    public JComponent getPreferrableFocusComponent() {
-        return messageField;
-    }
+    val preferrableFocusComponent: JComponent
+        get() = messageField
 }
 

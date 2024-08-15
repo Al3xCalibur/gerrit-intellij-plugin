@@ -13,123 +13,85 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import static com.intellij.icons.AllIcons.Actions.Cancel;
-import static com.intellij.icons.AllIcons.Actions.Checked;
-import static com.intellij.icons.AllIcons.Actions.Forward;
-import static com.intellij.icons.AllIcons.Actions.MoveDown;
-import static com.intellij.icons.AllIcons.Actions.MoveUp;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.ActionGroup;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import com.google.common.collect.*
+import com.google.inject.Inject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionGroup
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.UpdateInBackground
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import java.util.*
+import javax.swing.Icon
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class ReviewActionGroup extends ActionGroup implements UpdateInBackground {
-    private static final ImmutableMap<Integer, Icon> ICONS = ImmutableMap.of(
-        -2, Cancel,
-        -1, MoveDown,
-        0, Forward,
-        1, MoveUp,
-        2, Checked
-    );
+// proxy class below is registered
+open class ReviewActionGroup : ActionGroup("Review", "Review Change", AllIcons.Debugger.Watch), UpdateInBackground {
+    @Inject
+    private lateinit var reviewActionFactory: ReviewActionFactory
 
     @Inject
-    private ReviewActionFactory reviewActionFactory;
-    @Inject
-    private GerritSettings gerritSettings;
+    private lateinit var gerritSettings: GerritSettings
 
-    public ReviewActionGroup() {
-        super("Review", "Review Change", AllIcons.Debugger.Watch);
+    override fun update(e: AnActionEvent) {
+        e.presentation.isEnabled = gerritSettings.isLoginAndPasswordAvailable
     }
 
-    @Override
-    public void update(AnActionEvent e) {
-        e.getPresentation().setEnabled(gerritSettings.isLoginAndPasswordAvailable());
-    }
+    override fun getChildren(anActionEvent: AnActionEvent?): Array<AnAction> {
+        val selectedChange = ActionUtil.getSelectedChange(anActionEvent) ?: return emptyArray<AnAction>()
 
-    @NotNull
-    @Override
-    public AnAction[] getChildren(@Nullable AnActionEvent anActionEvent) {
-        Optional<ChangeInfo> selectedChange = ActionUtil.getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return new AnAction[0];
-        }
-        Map<String, Collection<String>> permittedLabels = selectedChange.get().permittedLabels;
-        List<AnAction> labels = Lists.newArrayList();
+        val permittedLabels = selectedChange.permittedLabels
+        val labels: MutableList<AnAction> = Lists.newArrayList()
         if (permittedLabels != null) {
-            for (Map.Entry<String, Collection<String>> entry : permittedLabels.entrySet()) {
-                labels.add(createLabelGroup(entry));
+            for (entry in permittedLabels.entries) {
+                labels.add(createLabelGroup(entry))
             }
         }
-        return labels.toArray(new AnAction[0]);
+        return labels.toTypedArray<AnAction>()
     }
 
-    private ActionGroup createLabelGroup(final Map.Entry<String, Collection<String>> entry) {
-        return new ActionGroup(entry.getKey(), true) {
-            @NotNull
-            @Override
-            public AnAction[] getChildren(@Nullable AnActionEvent anActionEvent) {
-                List<AnAction> valueActions = Lists.newArrayList();
-                Collection<String> values = entry.getValue();
-                List<Integer> intValues = Lists.newArrayList(Collections2.transform(
-                    values, v -> {
-                        v = v.trim();
-                        if (v.charAt(0) == '+') v = v.substring(1); // required for Java 6 support
-                        return Integer.valueOf(v);
-                    }));
-                Collections.sort(intValues);
-                Collections.reverse(intValues);
-                for (Integer value : intValues) {
-                    valueActions.add(reviewActionFactory.get(entry.getKey(), value, ICONS.get(value), false));
-                    valueActions.add(reviewActionFactory.get(entry.getKey(), value, ICONS.get(value), true));
+    private fun createLabelGroup(entry: Map.Entry<String, Collection<String>>): ActionGroup {
+        return object : ActionGroup(entry.key, true) {
+            override fun getChildren(anActionEvent: AnActionEvent?): Array<AnAction> {
+                val valueActions: MutableList<AnAction> = Lists.newArrayList()
+                val values: Collection<String> = entry.value
+                val intValues: List<Int> = values.map {
+                    val x = it.trim { it <= ' ' }
+                    (if (x[0] == '+') x.substring(1) else x).toInt() // required for Java 6 support
+                }.sortedDescending()
+                for (value in intValues) {
+                    valueActions.add(reviewActionFactory.get(entry.key, value, ICONS[value], false))
+                    valueActions.add(reviewActionFactory.get(entry.key, value, ICONS[value], true))
                 }
-                return valueActions.toArray(new AnAction[0]);
+                return valueActions.toTypedArray<AnAction>()
             }
-        };
-    }
-
-    public static class Proxy extends ReviewActionGroup {
-        private final ReviewActionGroup delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(ReviewActionGroup.class);
-        }
-
-        @Override
-        public void update(AnActionEvent e) {
-            delegate.update(e);
-        }
-
-        @NotNull
-        @Override
-        public AnAction[] getChildren(@Nullable AnActionEvent anActionEvent) {
-            return delegate.getChildren(anActionEvent);
         }
     }
 
+    class Proxy : ReviewActionGroup() {
+        private val delegate: ReviewActionGroup = GerritModule.getInstance<ReviewActionGroup>()
+
+        override fun update(e: AnActionEvent) {
+            delegate.update(e)
+        }
+
+        override fun getChildren(anActionEvent: AnActionEvent?): Array<AnAction> {
+            return delegate.getChildren(anActionEvent)
+        }
+    }
+
+    companion object {
+        private val ICONS: ImmutableMap<Int, Icon> = ImmutableMap.of(
+            -2, AllIcons.Actions.Cancel,
+            -1, AllIcons.Actions.MoveDown,
+            0, AllIcons.Actions.Forward,
+            1, AllIcons.Actions.MoveUp,
+            2, AllIcons.Actions.Checked
+        )
+    }
 }

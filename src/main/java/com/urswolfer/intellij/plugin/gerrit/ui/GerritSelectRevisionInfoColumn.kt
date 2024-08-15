@@ -13,153 +13,114 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.RevisionInfo;
-import com.google.inject.Inject;
-import com.intellij.openapi.ui.ComboBoxTableRenderer;
-import com.intellij.openapi.util.Pair;
-import com.intellij.util.ui.ColumnInfo;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.util.RevisionInfos;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.border.Border;
-import javax.swing.event.CellEditorListener;
-import javax.swing.event.ChangeEvent;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellEditor;
-import javax.swing.table.TableCellRenderer;
-import java.awt.event.MouseEvent;
-import java.util.Collections;
-import java.util.EventObject;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.base.Function
+import com.google.common.base.Functions
+import com.google.common.collect.*
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.openapi.ui.ComboBoxTableRenderer
+import com.intellij.util.ui.ColumnInfo
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.util.RevisionInfos
+import java.awt.event.MouseEvent
+import java.util.*
+import javax.swing.border.Border
+import javax.swing.event.CellEditorListener
+import javax.swing.event.ChangeEvent
+import javax.swing.table.DefaultTableCellRenderer
+import javax.swing.table.TableCellEditor
+import javax.swing.table.TableCellRenderer
 
 /**
- * Class representing the column in the {@link com.urswolfer.intellij.plugin.gerrit.ui.GerritChangeListPanel} to select
+ * Class representing the column in the [com.urswolfer.intellij.plugin.gerrit.ui.GerritChangeListPanel] to select
  * a revision for the row's change.
  *
  * @author Thomas Forrer
  */
-public class GerritSelectRevisionInfoColumn extends ColumnInfo<ChangeInfo, String> {
+class GerritSelectRevisionInfoColumn : ColumnInfo<ChangeInfo, String>("Patch Set") {
     @Inject
-    private SelectedRevisions selectedRevisions;
+    private val selectedRevisions: SelectedRevisions? = null
 
-    private static final Function<Map.Entry<String, RevisionInfo>, Pair<String, RevisionInfo>> MAP_ENTRY_TO_PAIR = entry ->
-        Pair.create(entry.getKey(), entry.getValue());
-
-    public GerritSelectRevisionInfoColumn() {
-        super("Patch Set");
+    override fun valueOf(changeInfo: ChangeInfo): String {
+        val activeRevision = selectedRevisions!![changeInfo] ?: return ""
+        val revisionInfo = changeInfo.revisions[activeRevision]!!
+        return getRevisionLabelFunction(changeInfo)(activeRevision to revisionInfo)
     }
 
-    @Nullable
-    @Override
-    public String valueOf(ChangeInfo changeInfo) {
-        String activeRevision = selectedRevisions.get(changeInfo);
-        if (activeRevision == null) {
-            return "";
-        }
-        RevisionInfo revisionInfo = changeInfo.revisions.get(activeRevision);
-        return getRevisionLabelFunction(changeInfo).apply(Pair.create(activeRevision, revisionInfo));
+    override fun isCellEditable(changeInfo: ChangeInfo): Boolean {
+        return changeInfo.revisions != null && changeInfo.revisions.size > 1
     }
 
-    @Override
-    public boolean isCellEditable(ChangeInfo changeInfo) {
-        return changeInfo.revisions != null && changeInfo.revisions.size() > 1;
-    }
-
-    @Nullable
-    @Override
-    public TableCellEditor getEditor(final ChangeInfo changeInfo) {
-        ComboBoxTableRenderer<String> editor = createComboBoxTableRenderer(changeInfo);
-        editor.addCellEditorListener(new CellEditorListener() {
-            @Override
-            public void editingStopped(ChangeEvent e) {
-                ComboBoxTableRenderer cellEditor = (ComboBoxTableRenderer) e.getSource();
-                String value = (String) cellEditor.getCellEditorValue();
-                Iterable<Pair<String, RevisionInfo>> pairs = Iterables.transform(changeInfo.revisions.entrySet(), MAP_ENTRY_TO_PAIR);
-                Map<String, Pair<String, RevisionInfo>> map = Maps.uniqueIndex(pairs, getRevisionLabelFunction(changeInfo));
-                Pair<String, RevisionInfo> pair = map.get(value);
-                selectedRevisions.put(changeInfo.id, pair.getFirst());
+    override fun getEditor(changeInfo: ChangeInfo): TableCellEditor {
+        val editor = createComboBoxTableRenderer(changeInfo)
+        editor.addCellEditorListener(object : CellEditorListener {
+            override fun editingStopped(e: ChangeEvent) {
+                val cellEditor = e.source as ComboBoxTableRenderer<*>
+                val value = cellEditor.cellEditorValue as String
+                val pairs = changeInfo.revisions.entries.map { it.toPair() }
+                val rev = getRevisionLabelFunction(changeInfo)
+                val map: Map<String, Pair<String?, RevisionInfo?>> = pairs.associateBy { rev(it) }
+                val pair = map[value]!!
+                selectedRevisions!![changeInfo.id] = pair.first
             }
 
-            @Override
-            public void editingCanceled(ChangeEvent e) {}
-        });
-        return editor;
+            override fun editingCanceled(e: ChangeEvent) {}
+        })
+        return editor
     }
 
-    @Nullable
-    @Override
-    public String getMaxStringValue() {
-        return "99/99: abcedf1";
+    override fun getMaxStringValue(): String {
+        return "99/99: abcedf1"
     }
 
-    @Nullable
-    @Override
-    public TableCellRenderer getRenderer(ChangeInfo changeInfo) {
-        final ComboBoxTableRenderer<String> renderer = createComboBoxTableRenderer(changeInfo);
+    override fun getRenderer(changeInfo: ChangeInfo): TableCellRenderer {
+        val renderer = createComboBoxTableRenderer(changeInfo)
         if (!isCellEditable(changeInfo)) {
-            return new DefaultTableCellRenderer() {
-                @Override
-                public void setBorder(Border border) {
-                    super.setBorder(renderer.getBorder());
+            return object : DefaultTableCellRenderer() {
+                override fun setBorder(border: Border) {
+                    super.setBorder(renderer.border)
                 }
-            };
-        }
-        return renderer;
-    }
-
-    private ComboBoxTableRenderer<String> createComboBoxTableRenderer(final ChangeInfo changeInfo) {
-        List<String> revisions = getRevisions(changeInfo);
-        String[] array = new String[revisions.size()];
-        return new ComboBoxTableRenderer<String>(revisions.toArray(array)) {
-            @Override
-            public boolean isCellEditable(EventObject event) {
-                if (!GerritSelectRevisionInfoColumn.this.isCellEditable(changeInfo)) {
-                    return false;
-                }
-                if (event instanceof MouseEvent) {
-                    return ((MouseEvent) event).getClickCount() >= 1;
-                }
-                return false;
             }
-        };
+        }
+        return renderer
     }
 
-    private List<String> getRevisions(ChangeInfo changeInfo) {
+    private fun createComboBoxTableRenderer(changeInfo: ChangeInfo): ComboBoxTableRenderer<String> {
+        val revisions = getRevisions(changeInfo)
+        return object : ComboBoxTableRenderer<String>(revisions.toTypedArray()) {
+            override fun isCellEditable(event: EventObject): Boolean {
+                if (!this@GerritSelectRevisionInfoColumn.isCellEditable(changeInfo)) {
+                    return false
+                }
+                if (event is MouseEvent) {
+                    return event.clickCount >= 1
+                }
+                return false
+            }
+        }
+    }
+
+    private fun getRevisions(changeInfo: ChangeInfo): List<String> {
         if (changeInfo.revisions == null) {
-            return Collections.emptyList();
+            return emptyList()
         }
-        Set<Map.Entry<String, RevisionInfo>> revisions = ImmutableSortedSet.copyOf(
-                RevisionInfos.MAP_ENTRY_COMPARATOR,
-                changeInfo.revisions.entrySet());
-        return Lists.newArrayList(Iterables.transform(
-                        revisions,
-                        Functions.compose(getRevisionLabelFunction(changeInfo), MAP_ENTRY_TO_PAIR)
-                )
-        );
+        val rev = getRevisionLabelFunction(changeInfo)
+        return changeInfo.revisions.entries.toSortedSet(RevisionInfos.MAP_ENTRY_COMPARATOR)
+            .map { it.toPair() }
+            .map { rev(it) }
     }
 
-    private Function<Pair<String, RevisionInfo>, String> getRevisionLabelFunction(final ChangeInfo changeInfo) {
-        return revisionInfo -> {
-            int size = changeInfo.revisions.size();
-            int number = revisionInfo.getSecond()._number;
-            String revision = revisionInfo.getFirst().substring(0, 7);
-            if (size < number) { // size not available in older Gerrit versions
-                return String.format("%s: %s", number, revision);
-            }
-            return String.format("%s/%s: %s", number, size, revision);
-        };
+    private fun getRevisionLabelFunction(changeInfo: ChangeInfo): (Pair<String, RevisionInfo>) -> String {
+        return { revisionInfo: Pair<String, RevisionInfo> ->
+            val size = changeInfo.revisions.size
+            val number = revisionInfo.second._number
+            val revision = revisionInfo.first.substring(0, 7)
+            if (size < number) // size not available in older Gerrit versions
+                "$number: $revision"
+            else
+                "$number/$size: $revision"
+        }
     }
 }

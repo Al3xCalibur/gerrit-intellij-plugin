@@ -1,92 +1,109 @@
-package com.urswolfer.intellij.plugin.gerrit.ui.diff;
+package com.urswolfer.intellij.plugin.gerrit.ui.diff
 
-import com.google.gerrit.extensions.client.Comment;
-import com.google.gerrit.extensions.client.Side;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.editor.markup.RangeHighlighter;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-
-import javax.swing.*;
+import com.google.gerrit.extensions.client.Comment
+import com.google.gerrit.extensions.client.Side
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.inject.Inject
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.markup.RangeHighlighter
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import javax.swing.Icon
 
 /**
  * @author Thomas Forrer
  */
-public class AddCommentActionBuilder {
-    @Inject
-    private CommentBalloonBuilder commentBalloonBuilder;
-    @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private GerritSettings gerritSettings;
-
-    public Builder create(CommentsDiffTool commentsDiffTool,
-                          ChangeInfo changeInfo,
-                          String revisionId,
-                          Editor editor,
-                          String filePath,
-                          Side commentSide) {
-        return new Builder().init(commentsDiffTool, changeInfo, revisionId, editor, filePath, commentSide);
+class AddCommentActionBuilder @Inject constructor(
+    private val commentBalloonBuilder: CommentBalloonBuilder,
+    private val gerritUtil: GerritUtil,
+    private val gerritSettings: GerritSettings
+) {
+    fun create(
+        commentsDiffTool: CommentsDiffTool,
+        changeInfo: ChangeInfo?,
+        revisionId: String?,
+        editor: Editor,
+        filePath: String,
+        commentSide: Side
+    ): Builder {
+        return Builder().init(commentsDiffTool, changeInfo, revisionId, editor, filePath, commentSide)
     }
 
-    public class Builder {
-        private String text;
-        private Icon icon;
-        private CommentsDiffTool commentsDiffTool;
-        private ChangeInfo changeInfo;
-        private String revisionId;
-        private Editor editor;
-        private String filePath;
-        private Side commentSide;
-        private Comment commentToEdit;
-        private RangeHighlighter lineHighlighter;
-        private RangeHighlighter rangeHighlighter;
-        private Comment replyToComment;
+    inner class Builder {
+        private var text: String? = null
+        private var icon: Icon? = null
+        private var commentsDiffTool: CommentsDiffTool? = null
+        private var changeInfo: ChangeInfo? = null
+        private var revisionId: String? = null
+        private var editor: Editor? = null
+        private var filePath: String? = null
+        private var commentSide: Side? = null
+        private var commentToEdit: Comment? = null
+        private var lineHighlighter: RangeHighlighter? = null
+        private var rangeHighlighter: RangeHighlighter? = null
+        private var replyToComment: Comment? = null
 
-        private Builder init(CommentsDiffTool commentsDiffTool,
-                             ChangeInfo changeInfo,
-                             String revisionId,
-                             Editor editor,
-                             String filePath,
-                             Side commentSide) {
-            this.commentsDiffTool = commentsDiffTool;
-            this.changeInfo = changeInfo;
-            this.revisionId = revisionId;
-            this.editor = editor;
-            this.filePath = filePath;
-            this.commentSide = commentSide;
-            return this;
+        fun init(
+            commentsDiffTool: CommentsDiffTool,
+            changeInfo: ChangeInfo?,
+            revisionId: String?,
+            editor: Editor,
+            filePath: String,
+            commentSide: Side
+        ): Builder {
+            this.commentsDiffTool = commentsDiffTool
+            this.changeInfo = changeInfo
+            this.revisionId = revisionId
+            this.editor = editor
+            this.filePath = filePath
+            this.commentSide = commentSide
+            return this
         }
 
-        public Builder withText(String text) {
-            this.text = text;
-            return this;
+        fun withText(text: String?): Builder {
+            this.text = text
+            return this
         }
 
-        public Builder withIcon(Icon icon) {
-            this.icon = icon;
-            return this;
+        fun withIcon(icon: Icon?): Builder {
+            this.icon = icon
+            return this
         }
 
-        public Builder update(Comment commentToEdit,
-                              RangeHighlighter lineHighlighter,
-                              RangeHighlighter rangeHighlighter) {
-            this.commentToEdit = commentToEdit;
-            this.lineHighlighter = lineHighlighter;
-            this.rangeHighlighter = rangeHighlighter;
-            return this;
+        fun update(
+            commentToEdit: Comment?,
+            lineHighlighter: RangeHighlighter?,
+            rangeHighlighter: RangeHighlighter?
+        ): Builder {
+            this.commentToEdit = commentToEdit
+            this.lineHighlighter = lineHighlighter
+            this.rangeHighlighter = rangeHighlighter
+            return this
         }
 
-        public Builder reply(Comment replyToComment) {
-            this.replyToComment = replyToComment;
-            return this;
+        fun reply(replyToComment: Comment?): Builder {
+            this.replyToComment = replyToComment
+            return this
         }
 
-        public AddCommentAction get() {
-            return new AddCommentAction(text, icon, commentsDiffTool, gerritUtil, gerritSettings, editor, commentBalloonBuilder,
-                    changeInfo, revisionId, filePath, commentSide, commentToEdit, lineHighlighter, rangeHighlighter, replyToComment);
+        fun get(): AddCommentAction {
+            return AddCommentAction(
+                text,
+                icon,
+                commentsDiffTool,
+                gerritUtil,
+                gerritSettings,
+                editor,
+                commentBalloonBuilder,
+                changeInfo,
+                revisionId,
+                filePath,
+                commentSide,
+                commentToEdit,
+                lineHighlighter,
+                rangeHighlighter,
+                replyToComment
+            )
         }
     }
 }

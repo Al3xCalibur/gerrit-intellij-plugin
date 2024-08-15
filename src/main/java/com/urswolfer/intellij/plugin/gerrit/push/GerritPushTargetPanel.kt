@@ -13,117 +13,120 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.push
 
-package com.urswolfer.intellij.plugin.gerrit.push;
+import com.intellij.dvcs.push.RepositoryNodeListener
+import com.intellij.dvcs.push.ui.PushTargetTextField
+import com.intellij.dvcs.push.ui.RepositoryNode
+import com.intellij.dvcs.push.ui.RepositoryWithBranchPanel
+import com.intellij.openapi.diagnostic.Logger
+import git4idea.push.GitPushSupport
+import git4idea.push.GitPushTarget
+import git4idea.push.GitPushTargetPanel
+import git4idea.repo.GitRepository
+import java.lang.reflect.Field
 
-import com.intellij.dvcs.push.PushTarget;
-import com.intellij.dvcs.push.RepositoryNodeListener;
-import com.intellij.dvcs.push.ui.PushTargetTextField;
-import com.intellij.dvcs.push.ui.RepositoryNode;
-import com.intellij.dvcs.push.ui.RepositoryWithBranchPanel;
-import com.intellij.openapi.diagnostic.Logger;
-import git4idea.push.GitPushSupport;
-import git4idea.push.GitPushTarget;
-import git4idea.push.GitPushTargetPanel;
-import git4idea.repo.GitRepository;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+class GerritPushTargetPanel(
+    support: GitPushSupport,
+    repository: GitRepository,
+    defaultTarget: GitPushTarget?,
+    gerritPushOptionsPanel: GerritPushOptionsPanel
+) : GitPushTargetPanel(support, repository, defaultTarget) {
+    private var branch: String? = null
 
-import java.lang.reflect.Field;
-
-public class GerritPushTargetPanel extends GitPushTargetPanel {
-
-    private static final Logger LOG = Logger.getInstance(GerritPushTargetPanel.class);
-    private String branch;
-
-    public GerritPushTargetPanel(@NotNull GitPushSupport support, @NotNull GitRepository repository, @Nullable GitPushTarget defaultTarget, GerritPushOptionsPanel gerritPushOptionsPanel) {
-        super(support, repository, defaultTarget);
-
-        String initialBranch = null;
+    init {
+        var initialBranch: String? = null
         if (defaultTarget != null) {
-            initialBranch = defaultTarget.getBranch().getNameForRemoteOperations();
+            initialBranch = defaultTarget.branch.nameForRemoteOperations
         }
-        gerritPushOptionsPanel.getGerritPushExtensionPanel().registerGerritPushTargetPanel(this, initialBranch);
+        gerritPushOptionsPanel.gerritPushExtensionPanel.registerGerritPushTargetPanel(this, initialBranch)
     }
 
-    public void initBranch(final String branch, boolean pushToGerritByDefault) {
-        setBranch(branch);
+    fun initBranch(branch: String?, pushToGerritByDefault: Boolean) {
+        setBranch(branch)
         try {
-            Field myFireOnChangeActionField = getField("myFireOnChangeAction");
-            final Runnable myFireOnChangeAction = (Runnable) myFireOnChangeActionField.get(this);
+            val myFireOnChangeActionField = getField("myFireOnChangeAction")
+            val myFireOnChangeAction = myFireOnChangeActionField[this] as Runnable?
             if (myFireOnChangeAction != null) {
-                Field repoPanelField = myFireOnChangeAction.getClass().getDeclaredField("val$repoPanel");
-                repoPanelField.setAccessible(true);
-                RepositoryWithBranchPanel repoPanel = (RepositoryWithBranchPanel) repoPanelField.get(myFireOnChangeAction);
-                //noinspection unchecked
-                repoPanel.addRepoNodeListener(new RepositoryNodeListener<PushTarget>() {
-                    @Override
-                    public void onTargetChanged(PushTarget newTarget) {}
+                val repoPanelField = myFireOnChangeAction.javaClass.getDeclaredField("val\$repoPanel")
+                repoPanelField.isAccessible = true
+                val repoPanel = repoPanelField[myFireOnChangeAction] as RepositoryWithBranchPanel<GitPushTarget>
+                repoPanel.addRepoNodeListener(object : RepositoryNodeListener<GitPushTarget> {
+                    override fun onTargetChanged(newTarget: GitPushTarget) {}
 
-                    @Override
-                    public void onSelectionChanged(boolean isSelected) {
+                    override fun onSelectionChanged(isSelected: Boolean) {
                         if (isSelected) {
-                            updateBranchTextField(myFireOnChangeAction);
+                            updateBranchTextField(myFireOnChangeAction)
                         }
                     }
 
-                    @Override
-                    public void onTargetInEditMode(@NotNull String s) {}
-                });
+                    override fun onTargetInEditMode(s: String) {}
+                })
 
                 if (pushToGerritByDefault) {
-                    updateBranchTextField(myFireOnChangeAction);
+                    updateBranchTextField(myFireOnChangeAction)
                 }
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            LOG.error(e);
+        } catch (e: NoSuchFieldException) {
+            LOG.error(e)
+        } catch (e: IllegalAccessException) {
+            LOG.error(e)
         }
-        updateBranch(branch);
+        updateBranch(branch)
     }
 
-    public void updateBranch(String branch) {
-        setBranch(branch);
+    fun updateBranch(branch: String?) {
+        setBranch(branch)
         try {
-            Field myFireOnChangeActionField = getField("myFireOnChangeAction");
-            Runnable myFireOnChangeAction = (Runnable) myFireOnChangeActionField.get(this);
+            val myFireOnChangeActionField = getField("myFireOnChangeAction")
+            val myFireOnChangeAction = myFireOnChangeActionField[this] as Runnable?
             if (myFireOnChangeAction != null) {
-                Field repoNodeField = myFireOnChangeAction.getClass().getDeclaredField("val$repoNode");
-                repoNodeField.setAccessible(true);
-                RepositoryNode repoNode = (RepositoryNode) repoNodeField.get(myFireOnChangeAction);
-                if (repoNode.isChecked()) {
-                    updateBranchTextField(myFireOnChangeAction);
+                val repoNodeField = myFireOnChangeAction.javaClass.getDeclaredField("val\$repoNode")
+                repoNodeField.isAccessible = true
+                val repoNode = repoNodeField[myFireOnChangeAction] as RepositoryNode
+                if (repoNode.isChecked) {
+                    updateBranchTextField(myFireOnChangeAction)
                 }
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            LOG.error(e);
+        } catch (e: NoSuchFieldException) {
+            LOG.error(e)
+        } catch (e: IllegalAccessException) {
+            LOG.error(e)
         }
     }
 
-    private void updateBranchTextField(Runnable myFireOnChangeAction) {
+    private fun updateBranchTextField(myFireOnChangeAction: Runnable) {
         try {
-            Field myTargetEditorField = getField("myTargetEditor");
-            PushTargetTextField myTargetEditor = (PushTargetTextField) myTargetEditorField.get(this);
-            myTargetEditor.setText(branch);
+            val myTargetEditorField = getField("myTargetEditor")
+            val myTargetEditor = myTargetEditorField[this] as PushTargetTextField
+            myTargetEditor.setText(branch)
 
-            fireOnChange();
+            fireOnChange()
 
-            myFireOnChangeAction.run();
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            LOG.error(e);
+            myFireOnChangeAction.run()
+        } catch (e: NoSuchFieldException) {
+            LOG.error(e)
+        } catch (e: IllegalAccessException) {
+            LOG.error(e)
         }
     }
 
-    private Field getField(String fieldName) throws NoSuchFieldException {
-        Field field = GitPushTargetPanel.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return field;
+    @Throws(NoSuchFieldException::class)
+    private fun getField(fieldName: String): Field {
+        val field = GitPushTargetPanel::class.java.getDeclaredField(fieldName)
+        field.isAccessible = true
+        return field
     }
 
-    public void setBranch(String branch) {
-        if (branch == null || branch.isEmpty() || branch.endsWith("/")) {
-            this.branch = null;
-            return;
+    fun setBranch(branch: String?) {
+        if (branch.isNullOrEmpty() || branch.endsWith("/")) {
+            this.branch = null
+            return
         }
-        this.branch = branch.trim();
+        this.branch = branch.trim { it <= ' ' }
+    }
+
+    companion object {
+        private val LOG = Logger.getInstance(GerritPushTargetPanel::class.java)
     }
 }

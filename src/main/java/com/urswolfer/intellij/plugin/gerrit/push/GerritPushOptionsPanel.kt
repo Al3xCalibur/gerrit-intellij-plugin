@@ -13,53 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.push
 
-package com.urswolfer.intellij.plugin.gerrit.push;
-
-import com.intellij.dvcs.push.VcsPushOptionValue;
-import com.intellij.dvcs.push.VcsPushOptionsPanel;
-import git4idea.push.GitPushOptionsPanel;
-import git4idea.push.GitPushTagMode;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
+import com.intellij.dvcs.push.VcsPushOptionValue
+import com.intellij.dvcs.push.VcsPushOptionsPanel
+import git4idea.push.GitPushOptionsPanel
+import git4idea.push.GitPushTagMode
+import java.awt.BorderLayout
+import java.awt.Dimension
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.JPanel
 
 /**
  * Wraps IntelliJ's GitPushOptionsPanel and Gerrit plugin push extension into one VcsPushOptionsPanel.
  *
  * @author Urs Wolfer
  */
-public class GerritPushOptionsPanel extends VcsPushOptionsPanel {
-    private final GerritPushExtensionPanel gerritPushExtensionPanel;
-    private GitPushOptionsPanel gitPushOptionsPanel;
+class GerritPushOptionsPanel(pushToGerrit: Boolean, forceDefaultBranch: Boolean) : VcsPushOptionsPanel() {
+    val gerritPushExtensionPanel: GerritPushExtensionPanel = GerritPushExtensionPanel(pushToGerrit, forceDefaultBranch)
+    private var gitPushOptionsPanel: GitPushOptionsPanel? = null
 
-    public GerritPushOptionsPanel(boolean pushToGerrit, boolean forceDefaultBranch) {
-        gerritPushExtensionPanel = new GerritPushExtensionPanel(pushToGerrit, forceDefaultBranch);
+    // javassist call
+    fun initPanel(defaultMode: GitPushTagMode?, followTagsSupported: Boolean, showSkipHookOption: Boolean) {
+        removeAll()
+        gitPushOptionsPanel = GitPushOptionsPanel(defaultMode, followTagsSupported, showSkipHookOption)
+
+        val mainContainer = JPanel()
+        mainContainer.layout = BoxLayout(mainContainer, BoxLayout.PAGE_AXIS)
+
+        mainContainer.add(gerritPushExtensionPanel)
+        mainContainer.add(Box.createRigidArea(Dimension(0, 10)))
+        mainContainer.add(gitPushOptionsPanel)
+
+        add(mainContainer, BorderLayout.CENTER)
+
+        gerritPushExtensionPanel.initialized()
     }
 
-    @SuppressWarnings("UnusedDeclaration") // javassist call
-    public void initPanel(@Nullable GitPushTagMode defaultMode, boolean followTagsSupported, boolean showSkipHookOption) {
-        removeAll();
-        gitPushOptionsPanel = new GitPushOptionsPanel(defaultMode, followTagsSupported, showSkipHookOption);
-
-        JPanel mainContainer = new JPanel();
-        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.PAGE_AXIS));
-
-        mainContainer.add(gerritPushExtensionPanel);
-        mainContainer.add(Box.createRigidArea(new Dimension(0, 10)));
-        mainContainer.add(gitPushOptionsPanel);
-
-        add(mainContainer, BorderLayout.CENTER);
-
-        gerritPushExtensionPanel.initialized();
-    }
-
-    public VcsPushOptionValue getValue() {
-        return gitPushOptionsPanel.getValue();
-    }
-
-    public GerritPushExtensionPanel getGerritPushExtensionPanel() {
-        return gerritPushExtensionPanel;
+    override fun getValue(): VcsPushOptionValue? {
+        return gitPushOptionsPanel!!.value
     }
 }

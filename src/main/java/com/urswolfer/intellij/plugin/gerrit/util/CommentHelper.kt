@@ -13,69 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.google.gerrit.extensions.client.Comment;
-
-import java.util.Objects;
+import com.google.gerrit.extensions.client.Comment
 
 /**
  * CommentInfo and ReviewInput.CommentInput do not provide equals and hashCode as required for map handling.
  *
  * @author Urs Wolfer
  */
-public class CommentHelper {
-
-    private final Comment comment;
-
-    public CommentHelper(Comment comment) {
-        this.comment = comment;
-    }
-
-    public Comment getComment() {
-        return comment;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof CommentHelper)) {
-            return false;
+class CommentHelper(val comment: Comment) {
+    override fun equals(obj: Any?): Boolean {
+        if (obj !is CommentHelper) {
+            return false
         }
-        return equals(comment, ((CommentHelper) obj).getComment());
+        return equals(
+            comment,
+            obj.comment
+        )
     }
 
-    @Override
-    public int hashCode() {
-        return hashCode(comment);
+    override fun hashCode(): Int {
+        return hashCode(comment)
     }
 
-    public static boolean equals(Comment comment1, Comment comment2) {
-        if (comment1 == comment2) return true;
-        if (comment2 == null || comment1.getClass() != comment2.getClass()) return false;
+    companion object {
+        fun equals(comment1: Comment, comment2: Comment?): Boolean {
+            if (comment1 === comment2) return true
+            if (comment2 == null || comment1.javaClass != comment2.javaClass) return false
 
-        Comment that = comment2;
+            val that: Comment = comment2
 
-        if (!Objects.equals(comment1.line, that.line)) return false;
-        if (!Objects.equals(comment1.id, that.id)) return false;
-        if (!Objects.equals(comment1.inReplyTo, that.inReplyTo)) return false;
-        if (!Objects.equals(comment1.message, that.message)) return false;
-        if (!Objects.equals(comment1.path, that.path)) return false;
-        if (!Objects.equals(comment1.side, that.side)) return false;
-        if (!Objects.equals(comment1.updated, that.updated)) return false;
+            if (comment1.line != that.line) return false
+            if (comment1.id != that.id) return false
+            if (comment1.inReplyTo != that.inReplyTo) return false
+            if (comment1.message != that.message) return false
+            if (comment1.path != that.path) return false
+            if (comment1.side != that.side) return false
+            if (comment1.updated != that.updated) return false
 
-        return true;
-    }
+            return true
+        }
 
-    public static int hashCode(Comment comment) {
-        int result = 0;
-        result = 31 * result + comment.id.hashCode();
-        result = 31 * result + (comment.path != null ? comment.path.hashCode() : 0);
-        result = 31 * result + (comment.side != null ? comment.side.hashCode() : 0);
-        result = 31 * result + comment.line;
-        result = 31 * result + (comment.inReplyTo != null ? comment.inReplyTo.hashCode() : 0);
-        result = 31 * result + (comment.message != null ? comment.message.hashCode() : 0);
-        result = 31 * result + (comment.updated != null ? comment.updated.hashCode() : 0);
-        return result;
+        fun hashCode(comment: Comment): Int {
+            var result = 0
+            result = 31 * result + comment.id.hashCode()
+            result = 31 * result + (if (comment.path != null) comment.path.hashCode() else 0)
+            result = 31 * result + (if (comment.side != null) comment.side.hashCode() else 0)
+            result = 31 * result + comment.line
+            result = 31 * result + (if (comment.inReplyTo != null) comment.inReplyTo.hashCode() else 0)
+            result = 31 * result + (if (comment.message != null) comment.message.hashCode() else 0)
+            result = 31 * result + (if (comment.updated != null) comment.updated.hashCode() else 0)
+            return result
+        }
     }
 }

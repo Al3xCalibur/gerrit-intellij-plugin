@@ -11,21 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package com.urswolfer.intellij.plugin.gerrit.util.safehtml;
+package com.urswolfer.intellij.plugin.gerrit.util.safehtml
 
 // based on: https://gerrit.googlesource.com/gerrit/+/master/gerrit-gwtexpui/src/main/java/com/google/gwtexpui/safehtml/client/
 
-@SuppressWarnings("serial")
-class SafeHtmlString extends SafeHtml {
-  private final String html;
-
-  SafeHtmlString(String h) {
-    html = h;
-  }
-
-  @Override
-  public String asString() {
-    return html;
-  }
+internal class SafeHtmlString(private val html: String) : SafeHtml() {
+    override fun asString(): String {
+        return html
+    }
 }

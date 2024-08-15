@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit
 
-package com.urswolfer.intellij.plugin.gerrit;
-
-import com.google.inject.AbstractModule;
-import com.intellij.ide.DataManager;
-import com.intellij.openapi.application.Application;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.options.ShowSettingsUtil;
-import com.intellij.openapi.ui.popup.JBPopupFactory;
-import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VirtualFileManager;
-import git4idea.commands.Git;
+import com.google.inject.AbstractModule
+import com.intellij.ide.DataManager
+import com.intellij.openapi.application.Application
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.options.ShowSettingsUtil
+import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFileManager
+import git4idea.commands.Git
 
 /**
  * Bindings for all dependencies to required OpenIDE service instances.
@@ -35,22 +34,24 @@ import git4idea.commands.Git;
  *
  * @author Thomas Forrer
  */
-public class OpenIdeDependenciesModule extends AbstractModule {
-    public static final Logger LOG = Logger.getInstance("gerrit");
+class OpenIdeDependenciesModule : AbstractModule() {
+    override fun configure() {
+        bind(Logger::class.java).toInstance(LOG)
+        bind(Application::class.java).toInstance(ApplicationManager.getApplication())
 
-    @Override
-    protected void configure() {
-        bind(Logger.class).toInstance(LOG);
-        bind(Application.class).toInstance(ApplicationManager.getApplication());
+        bind(LocalFileSystem::class.java).toInstance(LocalFileSystem.getInstance())
 
-        bind(LocalFileSystem.class).toInstance(LocalFileSystem.getInstance());
+        bind(Git::class.java).toInstance(ApplicationManager.getApplication().getService(Git::class.java))
+        bind(VirtualFileManager::class.java).toInstance(VirtualFileManager.getInstance())
 
-        bind(Git.class).toInstance(ApplicationManager.getApplication().getService(Git.class));
-        bind(VirtualFileManager.class).toInstance(VirtualFileManager.getInstance());
+        bind(ShowSettingsUtil::class.java).toInstance(ShowSettingsUtil.getInstance())
+        bind(DataManager::class.java).toInstance(DataManager.getInstance())
 
-        bind(ShowSettingsUtil.class).toInstance(ShowSettingsUtil.getInstance());
-        bind(DataManager.class).toInstance(DataManager.getInstance());
+        bind(JBPopupFactory::class.java).toInstance(JBPopupFactory.getInstance())
+    }
 
-        bind(JBPopupFactory.class).toInstance(JBPopupFactory.getInstance());
+    companion object {
+        @JvmField
+        val LOG: Logger = Logger.getInstance("gerrit")
     }
 }

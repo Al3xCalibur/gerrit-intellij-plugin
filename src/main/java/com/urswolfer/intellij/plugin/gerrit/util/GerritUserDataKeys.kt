@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.RevisionInfo;
-import com.intellij.openapi.util.Key;
-import com.intellij.openapi.util.Pair;
+import com.google.common.base.Optional
+import com.google.gerrit.extensions.common.ChangeInfo
+import com.google.gerrit.extensions.common.RevisionInfo
+import com.intellij.openapi.util.Key
 
 /**
  * @author Urs Wolfer
  */
-public interface GerritUserDataKeys {
-    Key<ChangeInfo> CHANGE = Key.create("gerrit.Change");
-    Key<Optional<Pair<String, RevisionInfo>>> BASE_REVISION = Key.create("gerrit.Change.BaseRevision");
+interface GerritUserDataKeys {
+    companion object {
+        val CHANGE: Key<ChangeInfo?> = Key.create("gerrit.Change")
+        val BASE_REVISION: Key<Pair<String, RevisionInfo>?> = Key.create("gerrit.Change.BaseRevision")
+    }
 }

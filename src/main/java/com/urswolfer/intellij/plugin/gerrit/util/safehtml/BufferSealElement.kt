@@ -11,55 +11,40 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package com.urswolfer.intellij.plugin.gerrit.util.safehtml;
+package com.urswolfer.intellij.plugin.gerrit.util.safehtml
 
 // based on: https://gerrit.googlesource.com/gerrit/+/master/gerrit-gwtexpui/src/main/java/com/google/gwtexpui/safehtml/client/
 
-final class BufferSealElement implements Buffer {
-  private final SafeHtmlBuilder shb;
+internal class BufferSealElement(private val shb: SafeHtmlBuilder) : Buffer {
+    override fun append(v: Boolean) {
+        shb.sealElement().append(v)
+    }
 
-  BufferSealElement(SafeHtmlBuilder safeHtmlBuilder) {
-    shb = safeHtmlBuilder;
-  }
+    override fun append(v: Char) {
+        shb.sealElement().append(v)
+    }
 
-  @Override
-  public void append(boolean v) {
-    shb.sealElement().append(v);
-  }
+    override fun append(v: Double) {
+        shb.sealElement().append(v)
+    }
 
-  @Override
-  public void append(char v) {
-    shb.sealElement().append(v);
-  }
+    override fun append(v: Float) {
+        shb.sealElement().append(v)
+    }
 
-  @Override
-  public void append(double v) {
-    shb.sealElement().append(v);
-  }
+    override fun append(v: Int) {
+        shb.sealElement().append(v)
+    }
 
-  @Override
-  public void append(float v) {
-    shb.sealElement().append(v);
-  }
+    override fun append(v: Long) {
+        shb.sealElement().append(v)
+    }
 
-  @Override
-  public void append(int v) {
-    shb.sealElement().append(v);
-  }
+    override fun append(v: String?) {
+        shb.sealElement().append(v)
+    }
 
-  @Override
-  public void append(long v) {
-    shb.sealElement().append(v);
-  }
-
-  @Override
-  public void append(String v) {
-    shb.sealElement().append(v);
-  }
-
-  @Override
-  public String toString() {
-    return shb.sealElement().toString();
-  }
+    override fun toString(): String {
+        return shb.sealElement().toString()
+    }
 }

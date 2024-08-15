@@ -14,47 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.extension
 
-package com.urswolfer.intellij.plugin.gerrit.extension;
-
-import com.google.common.base.Function;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
-import com.google.common.io.ByteStreams;
-import com.google.gerrit.extensions.client.ListChangesOption;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.FetchInfo;
-import com.google.gerrit.extensions.common.ProjectInfo;
-import com.google.gerrit.extensions.restapi.RestApiException;
-import com.google.gerrit.extensions.restapi.Url;
-import com.google.inject.Inject;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vcs.CheckoutProvider;
-import com.intellij.openapi.vcs.VcsKey;
-import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.urswolfer.gerrit.client.rest.GerritRestApi;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-import git4idea.checkout.GitCheckoutProvider;
-import git4idea.checkout.GitCloneDialog;
-import git4idea.commands.Git;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.util.List;
+import com.google.common.base.Function
+import com.google.common.base.Strings
+import com.google.common.collect.ImmutableSortedSet
+import com.google.common.collect.Iterables
+import com.google.common.collect.Ordering
+import com.google.common.io.ByteStreams
+import com.google.gerrit.extensions.client.ListChangesOption
+import com.google.gerrit.extensions.common.ProjectInfo
+import com.google.gerrit.extensions.restapi.RestApiException
+import com.google.gerrit.extensions.restapi.Url
+import com.google.inject.Inject
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.CheckoutProvider
+import com.intellij.openapi.vcs.VcsKey
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.urswolfer.gerrit.client.rest.GerritRestApi
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import git4idea.checkout.GitCheckoutProvider
+import git4idea.checkout.GitCloneDialog
+import git4idea.commands.Git
+import org.jetbrains.annotations.NonNls
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Parts based on org.jetbrains.plugins.github.GithubCheckoutProvider
@@ -62,170 +52,169 @@ import java.util.List;
  * @author oleg
  * @author Urs Wolfer
  */
-public class GerritCheckoutProvider implements CheckoutProvider {
-
-    private static final Function<ProjectInfo, String> GET_ID_FUNCTION = from -> from.id;
-    private static final Ordering<ProjectInfo> ID_REVERSE_ORDERING = Ordering.natural().onResultOf(GET_ID_FUNCTION).reverse();
-
-    @Inject
-    private LocalFileSystem localFileSystem;
-    @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private GerritSettings gerritSettings;
-    @Inject
-    private Logger log;
-    @Inject
-    private NotificationService notificationService;
-    @Inject
-    private GerritRestApi gerritApi;
-
-    @Override
-    public void doCheckout(@NotNull final Project project, @Nullable final Listener listener) {
+class GerritCheckoutProvider @Inject constructor(
+    private val localFileSystem: LocalFileSystem,
+    private val gerritUtil: GerritUtil,
+    private val gerritSettings: GerritSettings,
+    private val log: Logger,
+    private val notificationService: NotificationService,
+    private val gerritApi: GerritRestApi
+) : CheckoutProvider {
+    override fun doCheckout(project: Project, listener: CheckoutProvider.Listener?) {
         if (!gerritUtil.testGitExecutable(project)) {
-            return;
+            return
         }
-        FileDocumentManager.getInstance().saveAllDocuments();
-        List<ProjectInfo> availableProjects = null;
+        FileDocumentManager.getInstance().saveAllDocuments()
+        var availableProjects: List<ProjectInfo?>? = null
         try {
-            availableProjects = gerritUtil.getAvailableProjects(project);
-        } catch (Exception e) {
-            log.info(e);
-            NotificationBuilder notification = new NotificationBuilder(
-                    project,
-                    "Couldn't get the list of Gerrit repositories",
-                    gerritUtil.getErrorTextFromException(e));
-            notificationService.notifyError(notification);
+            availableProjects = gerritUtil.getAvailableProjects(project)
+        } catch (e: Exception) {
+            log.info(e)
+            val notification = NotificationBuilder(
+                project,
+                "Couldn't get the list of Gerrit repositories",
+                gerritUtil.getErrorTextFromException(e)
+            )
+            notificationService.notifyError(notification)
         }
         if (availableProjects == null) {
-            return;
+            return
         }
-        ImmutableSortedSet<ProjectInfo> orderedProjects =
-            ImmutableSortedSet.orderedBy(ID_REVERSE_ORDERING).addAll(availableProjects).build();
+        val orderedProjects =
+            ImmutableSortedSet.orderedBy(ID_REVERSE_ORDERING).addAll(availableProjects).build()
 
-        String url = getCloneBaseUrl();
+        val url = cloneBaseUrl
 
-        final GitCloneDialog dialog = new GitCloneDialog(project);
-        for (ProjectInfo projectInfo : orderedProjects) {
-            dialog.prependToHistory(url + '/' + Url.decode(projectInfo.id));
+        val dialog = GitCloneDialog(project)
+        for (projectInfo in orderedProjects) {
+            dialog.prependToHistory(url + '/' + Url.decode(projectInfo!!.id))
         }
-        dialog.show();
-        if (!dialog.isOK()) {
-            return;
+        dialog.show()
+        if (!dialog.isOK) {
+            return
         }
-        dialog.rememberSettings();
-        final VirtualFile destinationParent = localFileSystem.findFileByIoFile(new File(dialog.getParentDirectory()));
-        if (destinationParent == null) {
-            return;
-        }
-        final String sourceRepositoryURL = dialog.getSourceRepositoryURL();
-        final String directoryName = dialog.getDirectoryName();
-        final String parentDirectory = dialog.getParentDirectory();
+        dialog.rememberSettings()
+        val destinationParent = localFileSystem.findFileByIoFile(File(dialog.parentDirectory)) ?: return
+        val sourceRepositoryURL = dialog.sourceRepositoryURL
+        val directoryName = dialog.directoryName
+        val parentDirectory = dialog.parentDirectory
 
-        Git git = ApplicationManager.getApplication().getService(Git.class);
+        val git = ApplicationManager.getApplication().getService(Git::class.java)
 
-        Listener listenerWrapper = addCommitMsgHookListener(listener, directoryName, parentDirectory, project);
+        val listenerWrapper = addCommitMsgHookListener(listener, directoryName, parentDirectory, project)
 
-        GitCheckoutProvider.clone(project, git, listenerWrapper, destinationParent, sourceRepositoryURL, directoryName, parentDirectory);
+        GitCheckoutProvider.clone(
+            project,
+            git,
+            listenerWrapper,
+            destinationParent,
+            sourceRepositoryURL,
+            directoryName,
+            parentDirectory
+        )
     }
 
-    @Override
-    public String getVcsName() {
-        return "Gerrit";
+    override fun getVcsName(): String {
+        return "Gerrit"
     }
 
-    /**
-     * If set, return the clone base url from the preferences. Otherwise, try to determine the Git clone url by
-     * fetching a random change and processing its fetch url. If it fails, fall back to Gerrit host url config.
-     *
-     * This can be cleaned up once https://code.google.com/p/gerrit/issues/detail?id=2208 is implemented.
-     */
-    private String getCloneBaseUrl() {
-        if (!Strings.isNullOrEmpty(gerritSettings.getCloneBaseUrl())) {
-            return gerritSettings.getCloneBaseUrl();
-        }
-        String url = gerritSettings.getHost();
-        try {
-            List<ChangeInfo> changeInfos = gerritApi.changes().query()
-                .withLimit(1)
-                .withOption(ListChangesOption.CURRENT_REVISION)
-                .get();
-            if (changeInfos.isEmpty()) {
-                log.info("ChangeInfo list is empty.");
-                return url;
+    private val cloneBaseUrl: String?
+        /**
+         * If set, return the clone base url from the preferences. Otherwise, try to determine the Git clone url by
+         * fetching a random change and processing its fetch url. If it fails, fall back to Gerrit host url config.
+         *
+         * This can be cleaned up once https://code.google.com/p/gerrit/issues/detail?id=2208 is implemented.
+         */
+        get() {
+            if (!Strings.isNullOrEmpty(gerritSettings.cloneBaseUrl)) {
+                return gerritSettings.cloneBaseUrlOrHost
             }
-            ChangeInfo changeInfo = Iterables.getOnlyElement(changeInfos);
-            FetchInfo fetchInfo = gerritUtil.getFirstFetchInfo(changeInfo);
-            if (fetchInfo != null) {
-                String projectName = changeInfo.project;
-                url = fetchInfo.url.replaceAll("/" + projectName + "$", "");
+            var url = gerritSettings.host
+            try {
+                val changeInfos = gerritApi.changes().query()
+                    .withLimit(1)
+                    .withOption(ListChangesOption.CURRENT_REVISION)
+                    .get()
+                if (changeInfos.isEmpty()) {
+                    log.info("ChangeInfo list is empty.")
+                    return url
+                }
+                val changeInfo = Iterables.getOnlyElement(changeInfos)
+                val fetchInfo = gerritUtil.getFirstFetchInfo(changeInfo)
+                if (fetchInfo != null) {
+                    val projectName = changeInfo.project
+                    url = fetchInfo.url.replace("/$projectName$".toRegex(), "")
+                }
+            } catch (e: RestApiException) {
+                log.info(e)
             }
-        } catch (RestApiException e) {
-            log.info(e);
+            return url
         }
-        return url;
-    }
 
     /*
      * Since this is a listener which needs to be executed in any case, it cannot be a normal checkout-listener.
      * Checkout-listeners only get executed when "previous" listener got not executed (returns false).
      * Example: If user decides to setup a new project from newly created checkout, our listener does not get executed.
      */
-    private Listener addCommitMsgHookListener(final Listener listener, final String directoryName, final String parentDirectory, final Project project) {
-        return new Listener() {
-            @Override
-            public void directoryCheckedOut(File directory, VcsKey vcs) {
-                setupCommitMsgHook(parentDirectory, directoryName, project);
+    private fun addCommitMsgHookListener(
+        listener: CheckoutProvider.Listener?,
+        directoryName: String,
+        parentDirectory: String,
+        project: Project
+    ): CheckoutProvider.Listener {
+        return object : CheckoutProvider.Listener {
+            override fun directoryCheckedOut(directory: File, vcs: VcsKey) {
+                setupCommitMsgHook(parentDirectory, directoryName, project)
 
-                if (listener != null) listener.directoryCheckedOut(directory, vcs);
+                listener?.directoryCheckedOut(directory, vcs)
             }
 
-            @Override
-            public void checkoutCompleted() {
-                if (listener != null) listener.checkoutCompleted();
+            override fun checkoutCompleted() {
+                listener?.checkoutCompleted()
             }
-        };
+        }
     }
 
-    private void setupCommitMsgHook(String parentDirectory, String directoryName, Project project) {
+    private fun setupCommitMsgHook(parentDirectory: String, directoryName: String, project: Project) {
         try {
-            InputStream commitMessageHook = gerritApi.tools().getCommitMessageHook();
-            File targetFile = new File(parentDirectory + '/' + directoryName + "/.git/hooks/commit-msg");
-            ByteStreams.copy(commitMessageHook, new FileOutputStream(targetFile));
-            //noinspection ResultOfMethodCallIgnored
-            targetFile.setExecutable(true);
+            val commitMessageHook = gerritApi.tools().commitMessageHook
+            val targetFile = File("$parentDirectory/$directoryName/.git/hooks/commit-msg")
+            ByteStreams.copy(commitMessageHook, FileOutputStream(targetFile))
+            targetFile.setExecutable(true)
 
-            NotificationBuilder notification = new NotificationBuilder(
+            val notification = NotificationBuilder(
                 project,
                 "Gerrit Checkout done",
-                "Commit-Message Hook has been set up.");
-            notificationService.notify(notification);
-        } catch (Exception e) {
-            log.info(e);
-            NotificationBuilder notification = new NotificationBuilder(
-                    project,
-                    "Couldn't set up Gerrit Commit-Message Hook. Please do it manually.",
-                    gerritUtil.getErrorTextFromException(e));
-            notificationService.notifyError(notification);
+                "Commit-Message Hook has been set up."
+            )
+            notificationService.notify(notification)
+        } catch (e: Exception) {
+            log.info(e)
+            val notification = NotificationBuilder(
+                project,
+                "Couldn't set up Gerrit Commit-Message Hook. Please do it manually.",
+                gerritUtil.getErrorTextFromException(e)
+            )
+            notificationService.notifyError(notification)
         }
     }
 
-    public static final class Proxy implements CheckoutProvider {
-        private final CheckoutProvider delegate;
+    class Proxy : CheckoutProvider {
+        private val delegate: CheckoutProvider = GerritModule.getInstance<GerritCheckoutProvider>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(GerritCheckoutProvider.class);
+        override fun doCheckout(project: Project, listener: CheckoutProvider.Listener?) {
+            delegate.doCheckout(project, listener)
         }
 
-        @Override
-        public void doCheckout(@NotNull Project project, @Nullable Listener listener) {
-            delegate.doCheckout(project, listener);
+        override fun getVcsName(): @NonNls String? {
+            return delegate.vcsName
         }
+    }
 
-        @Override
-        @NonNls
-        public String getVcsName() {
-            return delegate.getVcsName();
-        }
+    companion object {
+        private val GET_ID_FUNCTION = { from: ProjectInfo? -> from!!.id }
+        private val ID_REVERSE_ORDERING: Ordering<ProjectInfo?> = Ordering.natural<Comparable<*>>().onResultOf(
+            GET_ID_FUNCTION
+        ).reverse()
     }
 }

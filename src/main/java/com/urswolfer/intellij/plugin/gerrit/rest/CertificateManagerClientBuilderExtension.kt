@@ -13,23 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.rest
 
-package com.urswolfer.intellij.plugin.gerrit.rest;
-
-import com.intellij.util.net.ssl.CertificateManager;
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension;
-import org.apache.http.impl.client.HttpClientBuilder;
+import com.intellij.util.net.ssl.CertificateManager
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension
+import org.apache.http.impl.client.HttpClientBuilder
 
 /**
  * @author Urs Wolfer
  */
-public class CertificateManagerClientBuilderExtension extends HttpClientBuilderExtension {
-
-    @Override
-    public HttpClientBuilder extend(HttpClientBuilder httpClientBuilder, GerritAuthData authData) {
-        HttpClientBuilder builder = super.extend(httpClientBuilder, authData);
-        builder.setSSLContext(CertificateManager.getInstance().getSslContext());
-        return builder;
+class CertificateManagerClientBuilderExtension : HttpClientBuilderExtension() {
+    override fun extend(httpClientBuilder: HttpClientBuilder, authData: GerritAuthData): HttpClientBuilder {
+        val builder = super.extend(httpClientBuilder, authData)
+        builder.setSSLContext(CertificateManager.getInstance().sslContext)
+        return builder
     }
 }

@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import java.util.Observable;
+import java.util.*
 
 /**
  * @author Thomas Forrer
  */
-public abstract class AbstractChangesFilter extends Observable implements ChangesFilter  {
-}
+abstract class AbstractChangesFilter : Observable(), ChangesFilter

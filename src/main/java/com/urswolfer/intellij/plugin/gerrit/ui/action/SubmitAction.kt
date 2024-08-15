@@ -13,83 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.api.changes.SubmitInput;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
+import com.google.gerrit.extensions.api.changes.SubmitInput
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.util.*
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class SubmitAction extends AbstractLoggedInChangeAction {
+// proxy class below is registered
+open class SubmitAction : AbstractLoggedInChangeAction("Submit", "Submit Change", AllIcons.ToolbarDecorator.Export) {
     @Inject
-    private NotificationService notificationService;
+    private lateinit var notificationService: NotificationService
 
-    public SubmitAction() {
-        super("Submit", "Submit Change", AllIcons.ToolbarDecorator.Export);
-    }
-
-    @Override
-    public void update(AnActionEvent e) {
-        super.update(e);
-        Optional<ChangeInfo> selectedChange = getSelectedChange(e);
-        if (selectedChange.isPresent() && isSubmittable(selectedChange.get())) {
-            e.getPresentation().setEnabled(false);
+    override fun update(e: AnActionEvent) {
+        super.update(e)
+        val selectedChange = getSelectedChange(e)
+        if (selectedChange != null && isSubmittable(selectedChange)) {
+            e.presentation.isEnabled = false
         }
     }
 
-    private boolean isSubmittable(ChangeInfo selectedChange) {
-        return Boolean.FALSE.equals(selectedChange.submittable);
+    private fun isSubmittable(selectedChange: ChangeInfo?): Boolean {
+        return java.lang.Boolean.FALSE == selectedChange!!.submittable
     }
 
-    @Override
-    public void actionPerformed(AnActionEvent anActionEvent) {
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
 
-        final Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
+        val selectedChange = getSelectedChange(anActionEvent) ?: return
+
+        val submitInput = SubmitInput()
+        gerritUtil.postSubmit(selectedChange.id, submitInput, project) {
+            val notification = NotificationBuilder(
+                project, "Change submitted", getSuccessMessage(selectedChange)
+            ).hideBalloon()
+            notificationService.notifyInformation(notification)
         }
-        SubmitInput submitInput = new SubmitInput();
-        gerritUtil.postSubmit(selectedChange.get().id, submitInput, project, aVoid -> {
-            NotificationBuilder notification = new NotificationBuilder(
-                    project, "Change submitted", getSuccessMessage(selectedChange.get())
-            ).hideBalloon();
-            notificationService.notifyInformation(notification);
-        });
     }
 
-    private String getSuccessMessage(ChangeInfo changeInfo) {
-        return String.format("Change '%s' submitted successfully.", changeInfo.subject);
+    private fun getSuccessMessage(changeInfo: ChangeInfo): String {
+        return "Change '${changeInfo.subject}' submitted successfully."
     }
 
-    public static class Proxy extends SubmitAction {
-        private final SubmitAction delegate;
+    class Proxy : SubmitAction() {
+        private val delegate: SubmitAction = GerritModule.getInstance<SubmitAction>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(SubmitAction.class);
+        override fun update(e: AnActionEvent) {
+            delegate.update(e)
         }
 
-        @Override
-        public void update(AnActionEvent e) {
-            delegate.update(e);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

@@ -13,40 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.DialogWrapper;
-
-import javax.swing.*;
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogWrapper
+import javax.swing.JComponent
 
 /**
  * @author Urs Wolfer
  */
-public class ReviewDialog extends DialogWrapper {
+class ReviewDialog(project: Project?) : DialogWrapper(project, true) {
+    val reviewPanel: ReviewPanel = ReviewPanel(project)
 
-    private final ReviewPanel reviewPanel;
-
-    public ReviewDialog(Project project) {
-        super(project, true);
-        reviewPanel = new ReviewPanel(project);
-        setTitle("Review Change");
-        setOKButtonText("Review");
-        init();
+    init {
+        title = "Review Change"
+        setOKButtonText("Review")
+        init()
     }
 
-    @Override
-    protected JComponent createCenterPanel() {
-        return reviewPanel;
+    override fun createCenterPanel(): JComponent {
+        return reviewPanel
     }
 
-    @Override
-    public JComponent getPreferredFocusedComponent() {
-        return reviewPanel.getPreferrableFocusComponent();
-    }
-
-    public ReviewPanel getReviewPanel() {
-        return reviewPanel;
+    override fun getPreferredFocusedComponent(): JComponent {
+        return reviewPanel.preferrableFocusComponent
     }
 }

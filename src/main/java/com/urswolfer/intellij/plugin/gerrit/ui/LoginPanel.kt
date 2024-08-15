@@ -14,19 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.intellij.ui.DocumentAdapter;
-import com.intellij.ui.components.JBTextField;
-import com.intellij.util.ui.UIUtil;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import com.intellij.ui.*
+import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.UIUtil
+import java.awt.Insets
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
+import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 
 /**
  * Parts based on org.jetbrains.plugins.github.ui.GithubLoginPanel
@@ -34,70 +32,62 @@ import java.awt.event.FocusEvent;
  * @author oleg
  * @author Urs Wolfer
  */
-public class LoginPanel {
-    public static final String LOGIN_CREDENTIALS_INFO =
-        "* For the best experience, it is suggested that you set a HTTP access password" +
-        " for your account in the Gerrit Web Application (Settings > HTTP Password)." +
-        " If this does not work, you can also try to use your usual Gerrit credentials.";
+class LoginPanel(dialog: LoginDialog) {
+    private lateinit var pane: JPanel
+    private lateinit var hostTextField: JBTextField
+    private lateinit var loginTextField: JTextField
+    private lateinit var passwordField: JPasswordField
+    private lateinit var gerritLoginInfoTestField: JTextPane
 
-    private JPanel pane;
-    private JBTextField hostTextField;
-    private JTextField loginTextField;
-    private JPasswordField passwordField;
-    private JTextPane gerritLoginInfoTestField;
+    init {
+        hostTextField.emptyText.setText("https://review.example.org")
 
-    public LoginPanel(final LoginDialog dialog) {
-        hostTextField.getEmptyText().setText("https://review.example.org");
-
-        hostTextField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                SettingsPanel.fixUrl(hostTextField);
+        hostTextField.addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) {
+                SettingsPanel.fixUrl(hostTextField)
             }
-        });
-        DocumentListener listener = new DocumentAdapter() {
-            @Override
-            protected void textChanged(DocumentEvent e) {
-                dialog.clearErrors();
+        })
+        val listener: DocumentListener = object : DocumentAdapter() {
+            override fun textChanged(e: DocumentEvent) {
+                dialog.clearErrors()
             }
-        };
-        loginTextField.getDocument().addDocumentListener(listener);
-        passwordField.getDocument().addDocumentListener(listener);
-        gerritLoginInfoTestField.setText(LOGIN_CREDENTIALS_INFO);
-        gerritLoginInfoTestField.setMargin(new Insets(5, 0, 0, 0));
-        gerritLoginInfoTestField.setBackground(UIUtil.TRANSPARENT_COLOR);
+        }
+        loginTextField.document.addDocumentListener(listener)
+        passwordField.document.addDocumentListener(listener)
+        gerritLoginInfoTestField.text = LOGIN_CREDENTIALS_INFO
+        gerritLoginInfoTestField.margin = Insets(5, 0, 0, 0)
+        gerritLoginInfoTestField.background = UIUtil.TRANSPARENT_COLOR
     }
 
-    public JComponent getPanel() {
-        return pane;
-    }
+    val panel: JComponent
+        get() = pane
 
-    public void setHost(final String host) {
-        hostTextField.setText(host);
-    }
+    var host: String?
+        get() = hostTextField.text.trim { it <= ' ' }
+        set(host) {
+            hostTextField.text = host
+        }
 
-    public void setLogin(final String login) {
-        loginTextField.setText(login);
-    }
+    var login: String?
+        get() = loginTextField.text.trim { it <= ' ' }
+        set(login) {
+            loginTextField.text = login
+        }
 
-    public void setPassword(final String password) {
-        passwordField.setText(password);
-    }
+    var password: String?
+        get() = String(passwordField.password)
+        set(password) {
+            passwordField.text = password
+        }
 
-    public String getHost() {
-        return hostTextField.getText().trim();
-    }
+    val preferrableFocusComponent: JComponent
+        get() = if (hostTextField.text.isEmpty()) hostTextField else loginTextField
 
-    public String getLogin() {
-        return loginTextField.getText().trim();
-    }
-
-    public String getPassword() {
-        return String.valueOf(passwordField.getPassword());
-    }
-
-    public JComponent getPreferrableFocusComponent() {
-        return hostTextField.getText().isEmpty() ? hostTextField : loginTextField;
+    companion object {
+        const val LOGIN_CREDENTIALS_INFO: String =
+            "* For the best experience, it is suggested that you set a HTTP access password" +
+                    " for your account in the Gerrit Web Application (Settings > HTTP Password)." +
+                    " If this does not work, you can also try to use your usual Gerrit credentials."
     }
 }
 

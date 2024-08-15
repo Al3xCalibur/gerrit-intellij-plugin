@@ -14,168 +14,147 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.urswolfer.intellij.plugin.gerrit.ui;
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-import com.intellij.icons.AllIcons;
-import com.intellij.ide.DataManager;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.intellij.openapi.actionSystem.ex.CustomComponentAction;
-import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.openapi.ui.popup.JBPopupFactory;
-import com.intellij.openapi.ui.popup.ListPopup;
-import com.intellij.ui.ClickListener;
-import com.intellij.ui.RoundedLineBorder;
-import com.intellij.util.Consumer;
-import com.intellij.util.ui.UIUtil;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import javax.swing.border.Border;
-import java.awt.event.*;
+import com.intellij.icons.AllIcons
+import com.intellij.ide.DataManager
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.ex.CustomComponentAction
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.ui.ClickListener
+import com.intellij.ui.RoundedLineBorder
+import com.intellij.util.Consumer
+import com.intellij.util.ui.UIUtil
+import java.awt.event.*
+import javax.swing.*
+import javax.swing.border.Border
 
 /**
  * Merge of original BasePopupAction (IntelliJ < 14) and com.intellij.vcs.log.ui.filter.FilterPopupComponent.
  */
-public abstract class BasePopupAction extends DumbAwareAction implements CustomComponentAction, UpdateInBackground {
-    private static final int GAP_BEFORE_ARROW = 3;
-    private static final int BORDER_SIZE = 2;
-    private static final Border INNER_MARGIN_BORDER = BorderFactory.createEmptyBorder(2, 2, 2, 2);
-    private static final Border FOCUSED_BORDER = createFocusedBorder();
-    private static final Border UNFOCUSED_BORDER = createUnfocusedBorder();
+abstract class BasePopupAction(filterName: String) : DumbAwareAction(), CustomComponentAction, UpdateInBackground {
+    private val myFilterNameLabel = JLabel("$filterName: ")
+    protected val filterValueLabel: JLabel = JLabel()
+    private val myPanel = JPanel()
 
-    private final JLabel myFilterNameLabel;
-    private final JLabel myFilterValueLabel;
-    private final JPanel myPanel;
+    init {
+        val layout = BoxLayout(myPanel, BoxLayout.X_AXIS)
+        myPanel.layout = layout
+        myPanel.isFocusable = true
+        myPanel.border = UNFOCUSED_BORDER
 
-    public BasePopupAction(String filterName) {
-        myFilterNameLabel = new JLabel(filterName + ": ");
+        myPanel.add(myFilterNameLabel)
+        myPanel.add(filterValueLabel)
+        myPanel.add(Box.createHorizontalStrut(GAP_BEFORE_ARROW))
+        myPanel.add(JLabel(AllIcons.Ide.Statusbar_arrows))
 
-        myFilterValueLabel = new JLabel();
-
-        myPanel = new JPanel();
-        BoxLayout layout = new BoxLayout(myPanel, BoxLayout.X_AXIS);
-        myPanel.setLayout(layout);
-        myPanel.setFocusable(true);
-        myPanel.setBorder(UNFOCUSED_BORDER);
-
-        myPanel.add(myFilterNameLabel);
-        myPanel.add(myFilterValueLabel);
-        myPanel.add(Box.createHorizontalStrut(GAP_BEFORE_ARROW));
-        myPanel.add(new JLabel(AllIcons.Ide.Statusbar_arrows));
-
-        showPopupMenuOnClick();
-        showPopupMenuFromKeyboard();
-        indicateHovering();
-        indicateFocusing();
+        showPopupMenuOnClick()
+        showPopupMenuFromKeyboard()
+        indicateHovering()
+        indicateFocusing()
     }
 
-    private DefaultActionGroup createActionGroup() {
-        final DefaultActionGroup group = new DefaultActionGroup();
-        createActions(new Consumer<AnAction>() {
-            @Override
-            public void consume(AnAction anAction) {
-                group.add(anAction);
-            }
-        });
-        return group;
+    private fun createActionGroup(): DefaultActionGroup {
+        val group = DefaultActionGroup()
+        createActions { anAction -> group.add(anAction!!) }
+        return group
     }
 
-    protected abstract void createActions(final Consumer<AnAction> actionConsumer);
+    protected abstract fun createActions(actionConsumer: Consumer<AnAction?>)
 
-    @Override
-    public void actionPerformed(@NotNull AnActionEvent e) {
+    override fun actionPerformed(e: AnActionEvent) {
     }
 
-    @Override
-    public @NotNull JComponent createCustomComponent(@NotNull Presentation presentation, @NotNull String place) {
-        return myPanel;
+    override fun createCustomComponent(presentation: Presentation, place: String): JComponent {
+        return myPanel
     }
 
-    protected void updateFilterValueLabel(String text) {
-        myFilterValueLabel.setText(text);
+    protected fun updateFilterValueLabel(text: String?) {
+        filterValueLabel.text = text
     }
 
-    protected JLabel getFilterValueLabel() {
-        return myFilterValueLabel;
-    }
-
-    private void indicateFocusing() {
-        myPanel.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(@NotNull FocusEvent e) {
-                myPanel.setBorder(FOCUSED_BORDER);
+    private fun indicateFocusing() {
+        myPanel.addFocusListener(object : FocusAdapter() {
+            override fun focusGained(e: FocusEvent) {
+                myPanel.border = FOCUSED_BORDER
             }
 
-            @Override
-            public void focusLost(@NotNull FocusEvent e) {
-                myPanel.setBorder(UNFOCUSED_BORDER);
+            override fun focusLost(e: FocusEvent) {
+                myPanel.border = UNFOCUSED_BORDER
             }
-        });
+        })
     }
 
-    private void showPopupMenuFromKeyboard() {
-        myPanel.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(@NotNull KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER || e.getKeyCode() == KeyEvent.VK_DOWN) {
-                    showPopupMenu();
+    private fun showPopupMenuFromKeyboard() {
+        myPanel.addKeyListener(object : KeyAdapter() {
+            override fun keyPressed(e: KeyEvent) {
+                if (e.keyCode == KeyEvent.VK_ENTER || e.keyCode == KeyEvent.VK_DOWN) {
+                    showPopupMenu()
                 }
             }
-        });
+        })
     }
 
-    private void showPopupMenuOnClick() {
-        new ClickListener() {
-            @Override
-            public boolean onClick(@NotNull MouseEvent event, int clickCount) {
-                showPopupMenu();
-                return true;
+    private fun showPopupMenuOnClick() {
+        object : ClickListener() {
+            override fun onClick(event: MouseEvent, clickCount: Int): Boolean {
+                showPopupMenu()
+                return true
             }
-        }.installOn(myPanel);
+        }.installOn(myPanel)
     }
 
-    private void indicateHovering() {
-        myPanel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(@NotNull MouseEvent e) {
-                setOnHoverForeground();
+    private fun indicateHovering() {
+        myPanel.addMouseListener(object : MouseAdapter() {
+            override fun mouseEntered(e: MouseEvent) {
+                setOnHoverForeground()
             }
 
-            @Override
-            public void mouseExited(@NotNull MouseEvent e) {
-                setDefaultForeground();
+            override fun mouseExited(e: MouseEvent) {
+                setDefaultForeground()
             }
-        });
+        })
     }
 
-    private void setDefaultForeground() {
-        myFilterNameLabel.setForeground(UIUtil.getLabelForeground());
-        myFilterValueLabel.setForeground(UIUtil.getLabelForeground());
+    private fun setDefaultForeground() {
+        myFilterNameLabel.foreground = UIUtil.getLabelForeground()
+        filterValueLabel.foreground = UIUtil.getLabelForeground()
     }
 
-    private void setOnHoverForeground() {
-        myFilterNameLabel.setForeground(UIUtil.getLabelForeground());
-        myFilterValueLabel.setForeground(UIUtil.getLabelForeground());
+    private fun setOnHoverForeground() {
+        myFilterNameLabel.foreground = UIUtil.getLabelForeground()
+        filterValueLabel.foreground = UIUtil.getLabelForeground()
     }
 
 
-    private void showPopupMenu() {
-        ListPopup popup = JBPopupFactory.getInstance().createActionGroupPopup(null, createActionGroup(),
-            DataManager.getInstance().getDataContext(myPanel), JBPopupFactory.ActionSelectionAid.SPEEDSEARCH, false);
-        popup.showUnderneathOf(myPanel);
+    private fun showPopupMenu() {
+        val popup = JBPopupFactory.getInstance().createActionGroupPopup(
+            null, createActionGroup(),
+            DataManager.getInstance().getDataContext(myPanel), JBPopupFactory.ActionSelectionAid.SPEEDSEARCH, false
+        )
+        popup.showUnderneathOf(myPanel)
     }
 
-    private static Border createFocusedBorder() {
-        return BorderFactory.createCompoundBorder(new RoundedLineBorder(UIUtil.getHeaderActiveColor(), 10, BORDER_SIZE),
-            INNER_MARGIN_BORDER);
-    }
+    companion object {
+        private const val GAP_BEFORE_ARROW = 3
+        private const val BORDER_SIZE = 2
+        private val INNER_MARGIN_BORDER: Border = BorderFactory.createEmptyBorder(2, 2, 2, 2)
+        private val FOCUSED_BORDER = createFocusedBorder()
+        private val UNFOCUSED_BORDER = createUnfocusedBorder()
 
-    private static Border createUnfocusedBorder() {
-        return BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(BORDER_SIZE, BORDER_SIZE, BORDER_SIZE, BORDER_SIZE),
-            INNER_MARGIN_BORDER);
+        private fun createFocusedBorder(): Border {
+            return BorderFactory.createCompoundBorder(
+                RoundedLineBorder(UIUtil.getHeaderActiveColor(), 10, BORDER_SIZE),
+                INNER_MARGIN_BORDER
+            )
+        }
+
+        private fun createUnfocusedBorder(): Border {
+            return BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(BORDER_SIZE, BORDER_SIZE, BORDER_SIZE, BORDER_SIZE),
+                INNER_MARGIN_BORDER
+            )
+        }
     }
 }

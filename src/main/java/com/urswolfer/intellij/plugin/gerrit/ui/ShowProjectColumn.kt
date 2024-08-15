@@ -1,18 +1,11 @@
-package com.urswolfer.intellij.plugin.gerrit.ui;
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-public enum ShowProjectColumn {
+enum class ShowProjectColumn(private val label: String) {
     ALWAYS("Always"),
     AUTO("Auto (when multiple Git repositories available)"),
     NEVER("Never");
 
-    ShowProjectColumn(String label) {
-        this.label = label;
-    }
-
-    private String label;
-
-    @Override
-    public String toString() {
-        return label;
+    override fun toString(): String {
+        return label
     }
 }

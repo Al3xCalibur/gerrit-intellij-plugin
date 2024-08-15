@@ -13,23 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.rest
 
-package com.urswolfer.intellij.plugin.gerrit.rest;
-
-import com.google.inject.AbstractModule;
-import com.urswolfer.gerrit.client.rest.GerritRestApi;
-import com.urswolfer.gerrit.client.rest.GerritRestApiFactory;
+import com.google.inject.AbstractModule
+import com.urswolfer.gerrit.client.rest.GerritRestApi
+import com.urswolfer.gerrit.client.rest.GerritRestApiFactory
 
 /**
  * @author Thomas Forrer
  */
-public class GerritRestModule extends AbstractModule {
-    @Override
-    protected void configure() {
-        bind(CertificateManagerClientBuilderExtension.class);
-        bind(ProxyHttpClientBuilderExtension.class);
-        bind(UserAgentClientBuilderExtension.class);
-        bind(GerritRestApiFactory.class);
-        bind(GerritRestApi.class).toProvider(new GerritApiProvider());
+class GerritRestModule : AbstractModule() {
+    override fun configure() {
+        bind(CertificateManagerClientBuilderExtension::class.java)
+        bind(ProxyHttpClientBuilderExtension::class.java)
+        bind(UserAgentClientBuilderExtension::class.java)
+        bind(GerritRestApiFactory::class.java)
+        bind(GerritRestApi::class.java).toProvider(GerritApiProvider::class.java)
     }
 }

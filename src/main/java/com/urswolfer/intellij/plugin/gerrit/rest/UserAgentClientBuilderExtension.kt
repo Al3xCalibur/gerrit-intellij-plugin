@@ -13,36 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.rest
 
-package com.urswolfer.intellij.plugin.gerrit.rest;
-
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension;
-import com.urswolfer.intellij.plugin.gerrit.Version;
-import org.apache.http.*;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.protocol.HttpContext;
-
-import java.io.IOException;
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension
+import com.urswolfer.intellij.plugin.gerrit.Version
+import org.apache.http.HttpHeaders
+import org.apache.http.HttpRequest
+import org.apache.http.HttpRequestInterceptor
+import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.protocol.HttpContext
 
 /**
  * @author Urs Wolfer
  */
-public class UserAgentClientBuilderExtension extends HttpClientBuilderExtension {
-
-    @Override
-    public HttpClientBuilder extend(HttpClientBuilder httpClientBuilder, GerritAuthData authData) {
-        HttpClientBuilder builder = super.extend(httpClientBuilder, authData);
-        httpClientBuilder.addInterceptorLast(new UserAgentHttpRequestInterceptor());
-        return builder;
+class UserAgentClientBuilderExtension : HttpClientBuilderExtension() {
+    override fun extend(httpClientBuilder: HttpClientBuilder, authData: GerritAuthData): HttpClientBuilder {
+        val builder = super.extend(httpClientBuilder, authData)
+        httpClientBuilder.addInterceptorLast(UserAgentHttpRequestInterceptor())
+        return builder
     }
 
-    private static class UserAgentHttpRequestInterceptor implements HttpRequestInterceptor {
-        public void process(final HttpRequest request, final HttpContext context) {
-            Header existingUserAgent = request.getFirstHeader(HttpHeaders.USER_AGENT);
-            String userAgent = String.format("gerrit-intellij-plugin/%s", Version.get());
-            userAgent += " using " + existingUserAgent.getValue();
-            request.setHeader(HttpHeaders.USER_AGENT, userAgent);
+    private class UserAgentHttpRequestInterceptor : HttpRequestInterceptor {
+        override fun process(request: HttpRequest, context: HttpContext) {
+            val existingUserAgent = request.getFirstHeader(HttpHeaders.USER_AGENT)
+            val userAgent = "gerrit-intellij-plugin/${Version.get()} using ${existingUserAgent.value}"
+            request.setHeader(HttpHeaders.USER_AGENT, userAgent)
         }
     }
 }

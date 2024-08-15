@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.inject.Inject;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-
-import javax.swing.*;
+import com.google.inject.Inject
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import javax.swing.Icon
 
 /**
  * Actions which require a logged in user need to extend this class.
@@ -28,16 +26,12 @@ import javax.swing.*;
  *
  * @author Urs Wolfer
  */
-public abstract class AbstractLoggedInChangeAction extends AbstractChangeAction {
+abstract class AbstractLoggedInChangeAction(text: String?, description: String?, icon: Icon?) :
+    AbstractChangeAction(text, description, icon) {
     @Inject
-    protected GerritSettings gerritSettings;
+    protected lateinit var gerritSettings: GerritSettings
 
-    public AbstractLoggedInChangeAction(String text, String description, Icon icon) {
-        super(text, description, icon);
-    }
-
-    @Override
-    public void update(AnActionEvent e) {
-        e.getPresentation().setEnabled(gerritSettings.isLoginAndPasswordAvailable());
+    override fun update(e: AnActionEvent) {
+        e.presentation.isEnabled = gerritSettings.isLoginAndPasswordAvailable
     }
 }

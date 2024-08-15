@@ -13,29 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import com.google.inject.AbstractModule;
-import com.google.inject.multibindings.Multibinder;
+import com.google.inject.AbstractModule
+import com.google.inject.multibindings.Multibinder
 
 /**
  * @author Thomas Forrer
  */
-public class GerritFilterModule extends AbstractModule {
-    @Override
-    protected void configure() {
-        Multibinder<AbstractChangesFilter> filters = Multibinder.newSetBinder(binder(), AbstractChangesFilter.class);
-        filters.addBinding().to(FulltextFilter.class);
-        filters.addBinding().to(StatusFilter.class);
-        filters.addBinding().to(BranchFilter.class);
-        filters.addBinding().to(AssigneeFilter.class);
-        filters.addBinding().to(ReviewerFilter.class);
-        filters.addBinding().to(AttentionFilter.class);
-        filters.addBinding().to(OwnerFilter.class);
-        filters.addBinding().to(IsStarredFilter.class);
-        filters.addBinding().to(ShowWIPFilter.class);
+class GerritFilterModule : AbstractModule() {
+    override fun configure() {
+        val filters = Multibinder.newSetBinder(binder(), AbstractChangesFilter::class.java)
+        filters.addBinding().to(FulltextFilter::class.java)
+        filters.addBinding().to(StatusFilter::class.java)
+        filters.addBinding().to(BranchFilter::class.java)
+        filters.addBinding().to(AssigneeFilter::class.java)
+        filters.addBinding().to(ReviewerFilter::class.java)
+        filters.addBinding().to(AttentionFilter::class.java)
+        filters.addBinding().to(OwnerFilter::class.java)
+        filters.addBinding().to(IsStarredFilter::class.java)
+        filters.addBinding().to(ShowWIPFilter::class.java)
 
-        bind(GerritChangesFilters.class);
+        bind(GerritChangesFilters::class.java)
     }
 }

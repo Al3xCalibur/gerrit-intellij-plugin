@@ -13,97 +13,83 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.dvcs.ui.CompareBranchesDialog;
-import com.intellij.dvcs.util.CommitCompareInfo;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.project.Project;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-import git4idea.GitLocalBranch;
-import git4idea.repo.GitRepository;
-import git4idea.ui.branch.GitCompareBranchesHelper;
-
-import java.util.Collections;
-import java.util.concurrent.Callable;
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.dvcs.ui.CompareBranchesDialog
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import git4idea.repo.GitRepository
+import git4idea.ui.branch.GitCompareBranchesHelper
+import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class CompareBranchAction extends AbstractChangeAction {
+// proxy class below is registered
+open class CompareBranchAction :
+    AbstractChangeAction("Compare with Branch", "Compare change with current branch", AllIcons.Actions.Diff) {
     @Inject
-    private GerritGitUtil gerritGitUtil;
+    private lateinit var gerritGitUtil: GerritGitUtil
+
     @Inject
-    private FetchAction fetchAction;
+    private lateinit var fetchAction: FetchAction
+
     @Inject
-    private NotificationService notificationService;
+    private lateinit var notificationService: NotificationService
 
-    public CompareBranchAction() {
-        super("Compare with Branch", "Compare change with current branch", AllIcons.Actions.Diff);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val selectedChange = getSelectedChange(anActionEvent) ?: return
+
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+        val successCallable = {
+            diffChange(project, selectedChange)
+            null
+        }
+        fetchAction.fetchChange(selectedChange, project, successCallable)
     }
 
-    @Override
-    public void actionPerformed(final AnActionEvent anActionEvent) {
-        final Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
-        }
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
-        Callable<Void> successCallable = () -> {
-            diffChange(project, selectedChange.get());
-            return null;
-        };
-        fetchAction.fetchChange(selectedChange.get(), project, successCallable);
-    }
-
-    private void diffChange(final Project project, ChangeInfo changeInfo) {
-        Optional<GitRepository> gitRepositoryOptional = gerritGitUtil.getRepositoryForGerritProject(project, changeInfo.project);
-        if (!gitRepositoryOptional.isPresent()) {
-            NotificationBuilder notification = new NotificationBuilder(project, "Error",
-                String.format("No repository found for Gerrit project: '%s'.", changeInfo.project));
-            notificationService.notifyError(notification);
-            return;
-        }
-        final GitRepository gitRepository = gitRepositoryOptional.get();
-
-        final String branchName = "FETCH_HEAD";
-        GitLocalBranch currentBranch = gitRepository.getCurrentBranch();
-        final String currentBranchName;
-        if (currentBranch != null) {
-            currentBranchName = currentBranch.getFullName();
-        } else {
-            currentBranchName = gitRepository.getCurrentRevision();
-        }
-        assert currentBranchName != null : "Current branch is neither a named branch nor a revision";
-
-        CommitCompareInfo compareInfo = gerritGitUtil.loadCommitsToCompare(
-            Collections.singletonList(gitRepository), branchName, project);
-        ApplicationManager.getApplication().invokeLater(() ->
-            new CompareBranchesDialog(new GitCompareBranchesHelper(project), branchName, currentBranchName, compareInfo, gitRepository, false).show());
-    }
-
-    public static class Proxy extends CompareBranchAction {
-        private final CompareBranchAction delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(CompareBranchAction.class);
+    private fun diffChange(project: Project?, changeInfo: ChangeInfo?) {
+        val gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, changeInfo!!.project)
+        if (gitRepository == null) {
+            val notification = NotificationBuilder(
+                project, "Error",
+                String.format("No repository found for Gerrit project: '%s'.", changeInfo.project)
+            )
+            notificationService.notifyError(notification)
+            return
         }
 
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        val branchName = "FETCH_HEAD"
+        val currentBranch = gitRepository.currentBranch
+        val currentBranchName = currentBranch?.fullName ?: gitRepository.currentRevision
+        checkNotNull(currentBranchName) { "Current branch is neither a named branch nor a revision" }
+
+        val compareInfo = gerritGitUtil.loadCommitsToCompare(listOf(gitRepository), branchName, project!!)
+        ApplicationManager.getApplication().invokeLater {
+            CompareBranchesDialog(
+                GitCompareBranchesHelper(project),
+                branchName,
+                currentBranchName,
+                compareInfo,
+                gitRepository,
+                false
+            ).show()
         }
     }
 
+    class Proxy : CompareBranchAction() {
+        private val delegate: CompareBranchAction = GerritModule.getInstance<CompareBranchAction>()
+
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
+        }
+    }
 }

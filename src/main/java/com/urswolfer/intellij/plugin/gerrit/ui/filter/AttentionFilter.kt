@@ -13,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
 /**
  * @author Urs Wolfer
  */
-public class AttentionFilter extends AbstractUserFilter {
-    @Override
-    public String getActionLabel() {
-        return "Attention";
-    }
+class AttentionFilter : AbstractUserFilter() {
+    override val actionLabel: String
+        get() = "Attention"
 
-    @Override
-    public String getQueryField() {
-        return "attention";
-    }
+    override val queryField: String
+        get() = "attention"
 }

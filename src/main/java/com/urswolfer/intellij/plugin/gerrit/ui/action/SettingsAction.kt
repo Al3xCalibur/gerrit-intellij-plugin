@@ -13,50 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.inject.Inject;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
-import com.intellij.openapi.options.ShowSettingsUtil;
-import com.intellij.openapi.project.DumbAware;
-import com.intellij.openapi.project.Project;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.ui.GerritSettingsConfigurable;
+import com.google.inject.Inject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.actionSystem.UpdateInBackground
+import com.intellij.openapi.options.ShowSettingsUtil
+import com.intellij.openapi.project.DumbAware
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.ui.GerritSettingsConfigurable
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class SettingsAction extends AnAction implements DumbAware, UpdateInBackground {
-
+// proxy class below is registered
+open class SettingsAction : AnAction("Settings", "Open Gerrit Plugin Settings", AllIcons.General.Settings), DumbAware,
+    UpdateInBackground {
     @Inject
-    private ShowSettingsUtil showSettingsUtil;
+    private lateinit var showSettingsUtil: ShowSettingsUtil
 
-    public SettingsAction() {
-        super("Settings", "Open Gerrit Plugin Settings", AllIcons.General.Settings);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+        showSettingsUtil.showSettingsDialog(project, GerritSettingsConfigurable.NAME)
     }
 
-    @Override
-    public void actionPerformed(AnActionEvent anActionEvent) {
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
-        showSettingsUtil.showSettingsDialog(project, GerritSettingsConfigurable.NAME);
-    }
+    class Proxy : SettingsAction() {
+        private val delegate: SettingsAction = GerritModule.getInstance<SettingsAction>()
 
-    public static class Proxy extends SettingsAction {
-        private final SettingsAction delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(SettingsAction.class);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

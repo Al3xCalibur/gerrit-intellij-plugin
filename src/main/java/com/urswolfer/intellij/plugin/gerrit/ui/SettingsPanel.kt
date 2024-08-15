@@ -14,27 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.common.base.Strings;
-import com.google.inject.Inject;
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.ProjectManager;
-import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.ui.EnumComboBoxModel;
-import com.intellij.ui.GuiUtils;
-import com.intellij.ui.components.JBTextField;
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import com.google.common.base.Strings
+import com.google.inject.Inject
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.ui.*
+import com.intellij.ui.components.JBTextField
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import java.awt.event.ActionEvent
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
+import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 
 /**
  * Parts based on org.jetbrains.plugins.github.ui.GithubSettingsPanel
@@ -42,244 +40,206 @@ import java.awt.event.FocusEvent;
  * @author oleg
  * @author Urs Wolfer
  */
-public class SettingsPanel {
-    private JTextField loginTextField;
-    private JPasswordField passwordField;
-    private JTextPane gerritLoginInfoTextField;
-    private JPanel loginPane;
-    private JButton testButton;
-    private JBTextField hostTextField;
-    private JSpinner refreshTimeoutSpinner;
-    private JPanel settingsPane;
-    private JPanel pane;
-    private JCheckBox notificationOnNewReviewsCheckbox;
-    private JCheckBox automaticRefreshCheckbox;
-    private JCheckBox listAllChangesCheckbox;
-    private JCheckBox pushToGerritCheckbox;
-    private JCheckBox showChangeNumberColumnCheckBox;
-    private JCheckBox showChangeIdColumnCheckBox;
-    private JCheckBox showTopicColumnCheckBox;
-    private JComboBox showProjectColumnComboBox;
-    private JTextField cloneBaseUrlTextField;
-    private JCheckBox forceDefaultBranchCheckBox;
-
-    private boolean passwordModified;
-
+class SettingsPanel {
     @Inject
-    private GerritSettings gerritSettings;
+    private lateinit var gerritSettings: GerritSettings
     @Inject
-    private GerritUtil gerritUtil;
+    private lateinit var gerritUtil: GerritUtil
     @Inject
-    private Logger log;
+    private lateinit var log: Logger
 
-    public SettingsPanel() {
-        hostTextField.getEmptyText().setText("https://review.example.org");
+    private lateinit var loginTextField: JTextField
+    private lateinit var passwordField: JPasswordField
+    private lateinit var gerritLoginInfoTextField: JTextPane
+    private lateinit var loginPane: JPanel
+    private lateinit var testButton: JButton
+    private lateinit var hostTextField: JBTextField
+    private lateinit var refreshTimeoutSpinner: JSpinner
+    private lateinit var settingsPane: JPanel
+    private lateinit var pane: JPanel
+    private lateinit var notificationOnNewReviewsCheckbox: JCheckBox
+    private lateinit var automaticRefreshCheckbox: JCheckBox
+    private lateinit var listAllChangesCheckbox: JCheckBox
+    private lateinit var pushToGerritCheckbox: JCheckBox
+    private lateinit var showChangeNumberColumnCheckBox: JCheckBox
+    private lateinit var showChangeIdColumnCheckBox: JCheckBox
+    private lateinit var showTopicColumnCheckBox: JCheckBox
+    private lateinit var showProjectColumnComboBox: JComboBox<ShowProjectColumn>
+    private lateinit var cloneBaseUrlTextField: JTextField
+    private lateinit var forceDefaultBranchCheckBox: JCheckBox
 
-        gerritLoginInfoTextField.setText(LoginPanel.LOGIN_CREDENTIALS_INFO);
-        gerritLoginInfoTextField.setBackground(pane.getBackground());
-        testButton.addActionListener(e -> {
-            String password = isPasswordModified() ? getPassword() : gerritSettings.getPassword();
-            String host = getHost();
+    var isPasswordModified: Boolean = false
+        private set
+
+    init {
+        hostTextField.emptyText.setText("https://review.example.org")
+
+        gerritLoginInfoTextField.text = LoginPanel.Companion.LOGIN_CREDENTIALS_INFO
+        gerritLoginInfoTextField.background = pane.background
+        testButton.addActionListener { e: ActionEvent? ->
+            val password = if (isPasswordModified) password else gerritSettings.password
             if (Strings.isNullOrEmpty(host)) {
-                Messages.showErrorDialog(pane, "Required field URL not specified", "Test Failure");
-                return;
+                Messages.showErrorDialog(pane, "Required field URL not specified", "Test Failure")
+                return@addActionListener
             }
             try {
-                GerritAuthData.Basic gerritAuthData = new GerritAuthData.Basic(host, getLogin(), password) {
-                    @Override
-                    public boolean isLoginAndPasswordAvailable() {
-                        return !Strings.isNullOrEmpty(getLogin());
+                val gerritAuthData: GerritAuthData.Basic = object : GerritAuthData.Basic(host, login, password) {
+                    override fun isLoginAndPasswordAvailable(): Boolean {
+                        return !login.isNullOrEmpty()
                     }
-                };
-                if (gerritUtil.checkCredentials(ProjectManager.getInstance().getDefaultProject(), gerritAuthData)) {
-                    Messages.showInfoMessage(pane, "Connection successful", "Success");
-                } else {
-                    Messages.showErrorDialog(pane, "Can't login to " + host + " using given credentials", "Login Failure");
                 }
-            } catch (Exception ex) {
-                log.info(ex);
-                Messages.showErrorDialog(pane, String.format("Can't login to %s: %s", host, gerritUtil.getErrorTextFromException(ex)),
-                        "Login Failure");
+                if (gerritUtil.checkCredentials(ProjectManager.getInstance().defaultProject, gerritAuthData)) {
+                    Messages.showInfoMessage(pane, "Connection successful", "Success")
+                } else {
+                    Messages.showErrorDialog(pane, "Can't login to $host using given credentials", "Login Failure")
+                }
+            } catch (ex: Exception) {
+                log.info(ex)
+                Messages.showErrorDialog(pane, "Can't login to $host: ${gerritUtil.getErrorTextFromException(ex)}",
+                    "Login Failure")
             }
-            setPassword(password);
-        });
-
-        hostTextField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                fixUrl(hostTextField);
-            }
-        });
-
-        passwordField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                passwordModified = true;
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                passwordModified = true;
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                passwordModified = true;
-            }
-        });
-
-        automaticRefreshCheckbox.addActionListener(e -> updateAutomaticRefresh());
-
-        showProjectColumnComboBox.setModel(new EnumComboBoxModel(ShowProjectColumn.class));
-
-        cloneBaseUrlTextField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                fixUrl(cloneBaseUrlTextField);
-            }
-        });
-    }
-
-    public static void fixUrl(JTextField textField) {
-        String text = textField.getText();
-        if (text.endsWith("/")) {
-            text = text.substring(0, text.length() - 1);
+            this.password = password
         }
-        if (!text.isEmpty() && !text.contains("://")) {
-            text = "http://" + text;
+
+        hostTextField.addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) {
+                fixUrl(hostTextField)
+            }
+        })
+
+        passwordField.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent) {
+                this@SettingsPanel.isPasswordModified = true
+            }
+
+            override fun removeUpdate(e: DocumentEvent) {
+                this@SettingsPanel.isPasswordModified = true
+            }
+
+            override fun changedUpdate(e: DocumentEvent) {
+                this@SettingsPanel.isPasswordModified = true
+            }
+        })
+
+        automaticRefreshCheckbox.addActionListener { e: ActionEvent? -> updateAutomaticRefresh() }
+
+        showProjectColumnComboBox.setModel(EnumComboBoxModel(ShowProjectColumn::class.java))
+
+        cloneBaseUrlTextField.addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) {
+                fixUrl(cloneBaseUrlTextField)
+            }
+        })
+    }
+
+    private fun updateAutomaticRefresh() {
+        GuiUtils.enableChildren(refreshTimeoutSpinner, automaticRefreshCheckbox.isSelected)
+    }
+
+    val panel: JComponent
+        get() = pane
+
+    var login: String?
+        get() = loginTextField.text.trim { it <= ' ' }
+        set(login) {
+            loginTextField.text = login
         }
-        textField.setText(text);
+
+    var password: String?
+        get() = String(passwordField.password)
+        set(password) {
+            // Show password as blank if password is empty
+            passwordField.text = if (StringUtil.isEmpty(password)) null else password
+        }
+
+    var host: String
+        get() = hostTextField.text.trim { it <= ' ' }
+        set(host) {
+            hostTextField.text = host
+        }
+
+    var listAllChanges: Boolean
+        get() = listAllChangesCheckbox.isSelected
+        set(listAllChanges) {
+            listAllChangesCheckbox.isSelected = listAllChanges
+        }
+
+    var automaticRefresh: Boolean
+        get() = automaticRefreshCheckbox.isSelected
+        set(automaticRefresh) {
+            automaticRefreshCheckbox.isSelected = automaticRefresh
+            updateAutomaticRefresh()
+        }
+
+    var refreshTimeout: Int
+        get() = refreshTimeoutSpinner.value as Int
+        set(refreshTimeout) {
+            refreshTimeoutSpinner.value = refreshTimeout
+        }
+
+    var reviewNotifications: Boolean
+        get() = notificationOnNewReviewsCheckbox.isSelected
+        set(reviewNotifications) {
+            notificationOnNewReviewsCheckbox.isSelected = reviewNotifications
+        }
+
+    var pushToGerrit: Boolean
+        get() = pushToGerritCheckbox.isSelected
+        set(pushToGerrit) {
+            pushToGerritCheckbox.isSelected = pushToGerrit
+        }
+
+    var showChangeNumberColumn: Boolean
+        get() = showChangeNumberColumnCheckBox.isSelected
+        set(showChangeNumberColumn) {
+            showChangeNumberColumnCheckBox.isSelected = showChangeNumberColumn
+        }
+
+    var showChangeIdColumn: Boolean
+        get() = showChangeIdColumnCheckBox.isSelected
+        set(showChangeIdColumn) {
+            showChangeIdColumnCheckBox.isSelected = showChangeIdColumn
+        }
+
+    var showTopicColumn: Boolean
+        get() = showTopicColumnCheckBox.isSelected
+        set(showTopicColumn) {
+            showTopicColumnCheckBox.isSelected = showTopicColumn
+        }
+
+    var showProjectColumn: ShowProjectColumn?
+        get() = showProjectColumnComboBox.model.selectedItem as ShowProjectColumn
+        set(showProjectColumn) {
+            showProjectColumnComboBox.model.selectedItem = showProjectColumn
+        }
+
+    fun resetPasswordModification() {
+        isPasswordModified = false
     }
 
-    private void updateAutomaticRefresh() {
-        GuiUtils.enableChildren(refreshTimeoutSpinner, automaticRefreshCheckbox.isSelected());
-    }
+    var cloneBaseUrl: String
+        get() = cloneBaseUrlTextField.text.trim { it <= ' ' }
+        set(cloneBaseUrl) {
+            cloneBaseUrlTextField.text = cloneBaseUrl
+        }
 
-    public JComponent getPanel() {
-        return pane;
-    }
+    var forceDefaultBranch: Boolean
+        get() = forceDefaultBranchCheckBox.isSelected
+        set(forceDefaultBranch) {
+            forceDefaultBranchCheckBox.isSelected = forceDefaultBranch
+        }
 
-    public void setLogin(final String login) {
-        loginTextField.setText(login);
+    companion object {
+        fun fixUrl(textField: JTextField) {
+            var text = textField.text
+            if (text.endsWith("/")) {
+                text = text.substring(0, text.length - 1)
+            }
+            if (text.isNotEmpty() && !text.contains("://")) {
+                text = "http://$text"
+            }
+            textField.text = text
+        }
     }
-
-    public void setPassword(final String password) {
-        // Show password as blank if password is empty
-        passwordField.setText(StringUtil.isEmpty(password) ? null : password);
-    }
-
-    public String getLogin() {
-        return loginTextField.getText().trim();
-    }
-
-    public String getPassword() {
-        return String.valueOf(passwordField.getPassword());
-    }
-
-    public void setHost(final String host) {
-        hostTextField.setText(host);
-    }
-
-    public String getHost() {
-        return hostTextField.getText().trim();
-    }
-
-    public boolean getListAllChanges() {
-        return listAllChangesCheckbox.isSelected();
-    }
-
-    public void setListAllChanges(boolean listAllChanges) {
-        listAllChangesCheckbox.setSelected(listAllChanges);
-    }
-
-    public void setAutomaticRefresh(final boolean automaticRefresh) {
-        automaticRefreshCheckbox.setSelected(automaticRefresh);
-        updateAutomaticRefresh();
-    }
-
-    public boolean getAutomaticRefresh() {
-        return automaticRefreshCheckbox.isSelected();
-    }
-
-    public void setRefreshTimeout(final int refreshTimeout) {
-        refreshTimeoutSpinner.setValue(refreshTimeout);
-    }
-
-    public int getRefreshTimeout() {
-        return (Integer) refreshTimeoutSpinner.getValue();
-    }
-
-    public void setReviewNotifications(final boolean reviewNotifications) {
-        notificationOnNewReviewsCheckbox.setSelected(reviewNotifications);
-    }
-
-    public boolean getReviewNotifications() {
-        return notificationOnNewReviewsCheckbox.isSelected();
-    }
-
-    public void setPushToGerrit(final boolean pushToGerrit) {
-        pushToGerritCheckbox.setSelected(pushToGerrit);
-    }
-
-    public boolean getPushToGerrit() {
-        return pushToGerritCheckbox.isSelected();
-    }
-
-    public boolean getShowChangeNumberColumn() {
-        return showChangeNumberColumnCheckBox.isSelected();
-    }
-
-    public void setShowChangeNumberColumn(final boolean showChangeNumberColumn) {
-        showChangeNumberColumnCheckBox.setSelected(showChangeNumberColumn);
-    }
-
-    public boolean getShowChangeIdColumn() {
-        return showChangeIdColumnCheckBox.isSelected();
-    }
-
-    public void setShowChangeIdColumn(final boolean showChangeIdColumn) {
-        showChangeIdColumnCheckBox.setSelected(showChangeIdColumn);
-    }
-
-    public boolean getShowTopicColumn() {
-        return showTopicColumnCheckBox.isSelected();
-    }
-
-    public void setShowTopicColumn(final boolean showTopicColumn) {
-        showTopicColumnCheckBox.setSelected(showTopicColumn);
-    }
-
-    public ShowProjectColumn getShowProjectColumn() {
-        return (ShowProjectColumn) showProjectColumnComboBox.getModel().getSelectedItem();
-    }
-
-    public void setShowProjectColumn(ShowProjectColumn showProjectColumn) {
-        showProjectColumnComboBox.getModel().setSelectedItem(showProjectColumn);
-    }
-
-    public boolean isPasswordModified() {
-        return passwordModified;
-    }
-
-    public void resetPasswordModification() {
-        passwordModified = false;
-    }
-
-    public void setCloneBaseUrl(final String cloneBaseUrl) {
-        cloneBaseUrlTextField.setText(cloneBaseUrl);
-    }
-
-    public String getCloneBaseUrl() {
-        return cloneBaseUrlTextField.getText().trim();
-    }
-
-    public void setForceDefaultBranch(final boolean forceDefaultBranch) {
-        forceDefaultBranchCheckBox.setSelected(forceDefaultBranch);
-    }
-
-    public boolean getForceDefaultBranch() {
-        return forceDefaultBranchCheckBox.isSelected();
-    }
-
 }
 

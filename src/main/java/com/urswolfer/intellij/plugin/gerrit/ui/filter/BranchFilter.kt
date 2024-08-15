@@ -13,138 +13,103 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import java.util.Collections;
-import java.util.List;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
-import com.google.inject.Inject;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Separator;
-import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import git4idea.GitRemoteBranch;
-import git4idea.repo.GitRepository;
-import org.jetbrains.annotations.Nullable;
+import com.google.common.base.Function
+import com.google.common.base.Optional
+import com.google.common.collect.*
+import com.google.inject.Inject
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction
+import git4idea.GitRemoteBranch
+import git4idea.repo.GitRepository
 
 /**
  * @author Thomas Forrer
  */
-public class BranchFilter extends AbstractChangesFilter {
+class BranchFilter : AbstractChangesFilter() {
     @Inject
-    private GerritGitUtil gerritGitUtil;
+    private lateinit var gerritGitUtil: GerritGitUtil
+
     @Inject
-    private GerritUtil gerritUtil;
+    private lateinit var gerritUtil: GerritUtil
 
-    private Optional<BranchDescriptor> value = Optional.absent();
+    private var value: BranchDescriptor? = null
 
-    @Override
-    public AnAction getAction(Project project) {
-        return new BranchPopupAction(project, "Branch");
+    override fun getAction(project: Project?): AnAction {
+        return BranchPopupAction(project, "Branch")
     }
 
-    @Override
-    @Nullable
-    public String getSearchQueryPart() {
-        if (value.isPresent()) {
-            return value.get().getQuery();
-        } else {
-            return null;
-        }
-    }
+    override val searchQueryPart: String?
+        get() = value?.query
 
-    public final class BranchPopupAction extends BasePopupAction {
-        private final Project project;
-
-        public BranchPopupAction(Project project, String filterName) {
-            super(filterName);
-            this.project = project;
-            updateFilterValueLabel("All");
+    inner class BranchPopupAction(private val project: Project?, filterName: String) : BasePopupAction(filterName) {
+        init {
+            updateFilterValueLabel("All")
         }
 
-        @Override
-        protected void createActions(Consumer<AnAction> actionConsumer) {
-            actionConsumer.consume(new DumbAwareAction("All") {
-                @Override
-                public void actionPerformed(AnActionEvent e) {
-                    value = Optional.absent();
-                    updateFilterValueLabel("All");
-                    setChanged();
-                    notifyObservers(project);
+        override fun createActions(actionConsumer: Consumer<AnAction?>) {
+            actionConsumer.consume(object : DumbAwareAction("All") {
+                override fun actionPerformed(e: AnActionEvent) {
+                    value = null
+                    updateFilterValueLabel("All")
+                    setChanged()
+                    notifyObservers(project)
                 }
-            });
-            Iterable<GitRepository> repositories = gerritGitUtil.getRepositories(project);
-            for (final GitRepository repository : repositories) {
-                DefaultActionGroup group = new DefaultActionGroup();
-                group.add(new Separator(getNameForRepository(repository)));
-                group.add(new DumbAwareAction("All") {
-                    @Override
-                    public void actionPerformed(AnActionEvent e) {
-                        value = Optional.of(new BranchDescriptor(repository));
-                        updateFilterValueLabel(String.format("All (%s)", getNameForRepository(repository)));
-                        setChanged();
-                        notifyObservers(project);
+            })
+            val repositories = gerritGitUtil.getRepositories(project)
+            for (repository in repositories) {
+                val group = DefaultActionGroup()
+                group.add(Separator(getNameForRepository(repository)))
+                group.add(object : DumbAwareAction("All") {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        value = BranchDescriptor(repository)
+                        updateFilterValueLabel("All (${getNameForRepository(repository)})")
+                        setChanged()
+                        notifyObservers(project)
                     }
-                });
-                List<GitRemoteBranch> branches = Lists.newArrayList(repository.getBranches().getRemoteBranches());
-                Ordering<GitRemoteBranch> ordering = Ordering.natural().onResultOf((Function<GitRemoteBranch, String>) GitRemoteBranch::getNameForRemoteOperations);
-                branches.sort(ordering);
-                for (final GitRemoteBranch branch : branches) {
-                    if (!branch.getNameForRemoteOperations().equals("HEAD")) {
-                        group.add(new DumbAwareAction(branch.getNameForRemoteOperations()) {
-                            @Override
-                            public void actionPerformed(AnActionEvent e) {
-                                value = Optional.of(new BranchDescriptor(repository, branch));
-                                updateFilterValueLabel(String.format("%s (%s)", branch.getNameForRemoteOperations(), getNameForRepository(repository)));
-                                setChanged();
-                                notifyObservers(project);
+                })
+                val ordering = Ordering.natural<Comparable<*>?>().onResultOf(
+                    Function { obj: GitRemoteBranch? -> obj!!.nameForRemoteOperations } as Function<GitRemoteBranch?, String?>)
+                val branches: List<GitRemoteBranch> = repository.branches.remoteBranches.sortedWith(ordering)
+                for (branch in branches) {
+                    if (branch.nameForRemoteOperations != "HEAD") {
+                        group.add(object : DumbAwareAction(branch.nameForRemoteOperations) {
+                            override fun actionPerformed(e: AnActionEvent) {
+                                value = BranchDescriptor(repository, branch)
+                                updateFilterValueLabel(
+                                    String.format(
+                                        "%s (%s)",
+                                        branch.nameForRemoteOperations,
+                                        getNameForRepository(repository)
+                                    )
+                                )
+                                setChanged()
+                                notifyObservers(project)
                             }
-                        });
+                        })
                     }
                 }
-                actionConsumer.consume(group);
+                actionConsumer.consume(group)
             }
         }
     }
 
-    private String getNameForRepository(GitRepository repository) {
-        return Iterables.getFirst(gerritUtil.getProjectNames(repository.getRemotes()), "");
+    private fun getNameForRepository(repository: GitRepository): String? {
+        return gerritUtil.getProjectNames(repository.remotes).firstOrNull() ?: ""
     }
 
-    private final class BranchDescriptor {
-        private final GitRepository repository;
-        private final Optional<GitRemoteBranch> branch;
-
-        private BranchDescriptor(GitRepository repository, GitRemoteBranch branch) {
-            this.repository = repository;
-            this.branch = Optional.of(branch);
-        }
-
-        private BranchDescriptor(GitRepository repository) {
-            this.repository = repository;
-            this.branch = Optional.absent();
-        }
-
-        public String getQuery() {
-            if (branch.isPresent()) {
-                return String.format("(project:%s+branch:%s)",
-                        getNameForRepository(repository),
-                        branch.get().getNameForRemoteOperations());
+    private inner class BranchDescriptor(private val repository: GitRepository, private val branch: GitRemoteBranch? = null) {
+        val query: String
+            get() = if (branch != null) {
+                "(project:${getNameForRepository(repository)}+branch:${branch.nameForRemoteOperations})"
             } else {
-                return String.format("project:%s", getNameForRepository(repository));
+                "project:${getNameForRepository(repository)}"
             }
-        }
     }
 }

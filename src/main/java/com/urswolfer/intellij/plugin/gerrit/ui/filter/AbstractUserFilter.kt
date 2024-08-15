@@ -13,156 +13,137 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.CommonShortcuts;
-import com.intellij.openapi.keymap.KeymapUtil;
-import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.popup.ComponentPopupBuilder;
-import com.intellij.openapi.ui.popup.JBPopup;
-import com.intellij.openapi.ui.popup.JBPopupFactory;
-import com.intellij.openapi.ui.popup.JBPopupListener;
-import com.intellij.openapi.ui.popup.LightweightWindowEvent;
-import com.intellij.openapi.util.Comparing;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
+import com.google.common.base.Optional
+import com.google.common.collect.*
+import com.google.inject.Inject
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonShortcuts
+import com.intellij.openapi.keymap.KeymapUtil
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import com.intellij.openapi.util.Comparing
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction
+import java.awt.Point
+import javax.swing.JTextArea
+import javax.swing.SwingUtilities
 
 /**
  * @author Thomas Forrer
  */
-public abstract class AbstractUserFilter extends AbstractChangesFilter {
-    private static final String POPUP_TEXT = String.format("%s to search",
-        KeymapUtil.getShortcutsText(CommonShortcuts.CTRL_ENTER.getShortcuts()));
-
+abstract class AbstractUserFilter : AbstractChangesFilter() {
     @Inject
-    private JBPopupFactory jbPopupFactory;
+    private lateinit var jbPopupFactory: JBPopupFactory
 
-    private ImmutableList<User> users;
-    private JBPopup popup;
-    private AnAction selectOkAction;
-    private JTextArea selectUserTextArea;
-    private Optional<User> value = Optional.absent();
+    private var users: List<User>? = null
+    private lateinit var popup: JBPopup
+    private var selectOkAction: AnAction? = null
+    private lateinit var selectUserTextArea: JTextArea
+    private var value: User? = null
 
-    public abstract String getActionLabel();
-    public abstract String getQueryField();
+    abstract val actionLabel: String
+    abstract val queryField: String
 
-    @Override
-    public AnAction getAction(final Project project) {
-        users = ImmutableList.of(
-                new User("All", null),
-                new User("Me", "self")
-        );
-        value = Optional.of(users.get(0));
-        return new UserPopupAction(project, getActionLabel());
+    override fun getAction(project: Project?): AnAction {
+        users = listOf(
+            User("All", null),
+            User("Me", "self")
+        )
+        value = users!![0]
+        return UserPopupAction(project, actionLabel)
     }
 
-    @Override
-    @Nullable
-    public String getSearchQueryPart() {
-        if (value.isPresent() && value.get().forQuery.isPresent()) {
-            String queryValue = value.get().forQuery.get();
-            queryValue = FulltextFilter.specialEncodeFulltextQuery(queryValue);
-            return String.format("%s:%s", getQueryField(), queryValue);
-        } else {
-            return null;
-        }
-    }
-
-    private static final class User {
-        String label;
-        Optional<String> forQuery;
-
-        private User(String label, String forQuery) {
-            this.label = label;
-            this.forQuery = Optional.fromNullable(forQuery);
-        }
-    }
-
-    public final class UserPopupAction extends BasePopupAction {
-        private final Project project;
-
-        public UserPopupAction(Project project, String labelText) {
-            super(labelText);
-            this.project = project;
-            updateFilterValueLabel(value.get().label);
-        }
-
-        @Override
-        protected void createActions(Consumer<AnAction> actionConsumer) {
-            for (final User user : users) {
-                actionConsumer.consume(new DumbAwareAction(user.label) {
-                    @Override
-                    public void actionPerformed(AnActionEvent e) {
-                        change(user);
-                    }
-                });
+    override val searchQueryPart: String?
+        get() {
+            val value = value
+            if (value != null && value.forQuery.isPresent) {
+                var queryValue = value.forQuery.get()
+                queryValue = FulltextFilter.specialEncodeFulltextQuery(queryValue)
+                return "$queryField:$queryValue"
+            } else {
+                return null
             }
-            selectUserTextArea = new JTextArea();
-            selectOkAction = buildOkAction();
-            actionConsumer.consume(new DumbAwareAction("Select...") {
-                @Override
-                public void actionPerformed(AnActionEvent e) {
-                    popup = buildBalloon(selectUserTextArea);
-                    Point point = new Point(0, 0);
-                    SwingUtilities.convertPointToScreen(point, getFilterValueLabel());
-                    popup.showInScreenCoordinates(getFilterValueLabel(), point);
-                    final JComponent content = popup.getContent();
-                    selectOkAction.registerCustomShortcutSet(CommonShortcuts.CTRL_ENTER, content);
-                    popup.addListener(new JBPopupListener() {
-                        @Override
-                        public void beforeShown(LightweightWindowEvent lightweightWindowEvent) {}
+        }
 
-                        @Override
-                        public void onClosed(LightweightWindowEvent event) {
-                            selectOkAction.unregisterCustomShortcutSet(content);
+    private class User(var label: String, forQuery: String?) {
+        var forQuery: Optional<String> = Optional.fromNullable(forQuery)
+    }
+
+    inner class UserPopupAction(private val project: Project?, labelText: String) : BasePopupAction(labelText) {
+        init {
+            updateFilterValueLabel(value!!.label)
+        }
+
+        override fun createActions(actionConsumer: Consumer<AnAction?>) {
+            for (user in users!!) {
+                actionConsumer.consume(object : DumbAwareAction(user.label) {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        change(user)
+                    }
+                })
+            }
+            selectUserTextArea = JTextArea()
+            selectOkAction = buildOkAction()
+            actionConsumer.consume(object : DumbAwareAction("Select...") {
+                override fun actionPerformed(e: AnActionEvent) {
+                    popup = buildBalloon(selectUserTextArea)
+                    val point = Point(0, 0)
+                    SwingUtilities.convertPointToScreen(point, filterValueLabel)
+                    popup.showInScreenCoordinates(filterValueLabel, point)
+                    val content = popup.content
+                    selectOkAction!!.registerCustomShortcutSet(CommonShortcuts.CTRL_ENTER, content)
+                    popup.addListener(object : JBPopupListener {
+                        override fun beforeShown(lightweightWindowEvent: LightweightWindowEvent) {}
+
+                        override fun onClosed(event: LightweightWindowEvent) {
+                            selectOkAction!!.unregisterCustomShortcutSet(content)
                         }
-                    });
+                    })
                 }
-            });
+            })
         }
 
-        private void change(User user) {
-            value = Optional.of(user);
-            updateFilterValueLabel(user.label);
-            setChanged();
-            notifyObservers(project);
+        private fun change(user: User) {
+            value = user
+            updateFilterValueLabel(user.label)
+            setChanged()
+            notifyObservers(project)
         }
 
-        private AnAction buildOkAction() {
-            return new AnAction() {
-                public void actionPerformed(AnActionEvent e) {
-                    popup.closeOk(e.getInputEvent());
-                    String newText = selectUserTextArea.getText().trim();
+        private fun buildOkAction(): AnAction {
+            return object : AnAction() {
+                override fun actionPerformed(e: AnActionEvent) {
+                    popup.closeOk(e.inputEvent)
+                    val newText = selectUserTextArea.text.trim { it <= ' ' }
                     if (newText.isEmpty()) {
-                        return;
+                        return
                     }
-                    if (!Comparing.equal(newText, getFilterValueLabel().getText(), true)) {
-                        User user = new User(newText, newText);
-                        change(user);
+                    if (!Comparing.equal(newText, filterValueLabel.text, true)) {
+                        val user = User(newText, newText)
+                        change(user)
                     }
                 }
-            };
+            }
         }
 
-        private JBPopup buildBalloon(JTextArea textArea) {
-            ComponentPopupBuilder builder = jbPopupFactory.
-                createComponentPopupBuilder(textArea, textArea);
-            builder.setAdText(POPUP_TEXT);
-            builder.setResizable(true);
-            builder.setMovable(true);
-            builder.setRequestFocus(true);
-            return builder.createPopup();
+        private fun buildBalloon(textArea: JTextArea): JBPopup {
+            val builder = jbPopupFactory.createComponentPopupBuilder(textArea, textArea)
+            builder.setAdText(POPUP_TEXT)
+            builder.setResizable(true)
+            builder.setMovable(true)
+            builder.setRequestFocus(true)
+            return builder.createPopup()
         }
+    }
+
+    companion object {
+        private val POPUP_TEXT = "${KeymapUtil.getShortcutsText(CommonShortcuts.CTRL_ENTER.shortcuts)} to search"
     }
 }

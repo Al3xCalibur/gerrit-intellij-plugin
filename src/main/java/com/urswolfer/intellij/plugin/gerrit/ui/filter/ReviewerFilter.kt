@@ -13,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
 /**
  * @author Thomas Forrer
  */
-public class ReviewerFilter extends AbstractUserFilter {
-    @Override
-    public String getActionLabel() {
-        return "Reviewer";
-    }
+class ReviewerFilter : AbstractUserFilter() {
+    override val actionLabel: String
+        get() = "Reviewer"
 
-    @Override
-    public String getQueryField() {
-        return "reviewer";
-    }
+    override val queryField: String
+        get() = "reviewer"
 }

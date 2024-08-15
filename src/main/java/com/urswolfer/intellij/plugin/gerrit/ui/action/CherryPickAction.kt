@@ -13,68 +13,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import icons.DvcsImplIcons;
-
-import java.util.concurrent.Callable;
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.application.ApplicationManager
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import icons.DvcsImplIcons
+import java.util.concurrent.Callable
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class CherryPickAction extends AbstractChangeAction {
+// proxy class below is registered
+open class CherryPickAction : AbstractChangeAction(
+    "Cherry-Pick (No Commit)",
+    "Cherry-Pick change into active changelist without committing",
+    DvcsImplIcons.CherryPick
+) {
     @Inject
-    private GerritGitUtil gerritGitUtil;
-    @Inject
-    private FetchAction fetchAction;
-    @Inject
-    private SelectedRevisions selectedRevisions;
+    private lateinit var gerritGitUtil: GerritGitUtil
 
-    public CherryPickAction() {
-        super("Cherry-Pick (No Commit)", "Cherry-Pick change into active changelist without committing", DvcsImplIcons.CherryPick);
+    @Inject
+    private lateinit var fetchAction: FetchAction
+
+    @Inject
+    private lateinit var selectedRevisions: SelectedRevisions
+
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val selectedChange = getSelectedChange(anActionEvent) ?: return
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
+
+        getChangeDetail(selectedChange, project) { changeInfo: ChangeInfo? ->
+            val fetchCallback = {
+                ApplicationManager.getApplication().invokeLater {
+                    gerritGitUtil.cherryPickChange(
+                        project,
+                        changeInfo,
+                        selectedRevisions[changeInfo]
+                    )
+                }
+                null
+            }
+            fetchAction.fetchChange(selectedChange, project, fetchCallback)
+        }
     }
 
-    @Override
-    public void actionPerformed(final AnActionEvent anActionEvent) {
-        final Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
-        }
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
+    class Proxy : CherryPickAction() {
+        private val delegate: CherryPickAction = GerritModule.getInstance<CherryPickAction>()
 
-        getChangeDetail(selectedChange.get(), project, changeInfo -> {
-            Callable<Void> fetchCallback = () -> {
-                ApplicationManager.getApplication().invokeLater(() ->
-                    gerritGitUtil.cherryPickChange(project, changeInfo, selectedRevisions.get(changeInfo)));
-                return null;
-            };
-            fetchAction.fetchChange(selectedChange.get(), project, fetchCallback);
-        });
-    }
-
-    public static class Proxy extends CherryPickAction {
-        private final CherryPickAction delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(CherryPickAction.class);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

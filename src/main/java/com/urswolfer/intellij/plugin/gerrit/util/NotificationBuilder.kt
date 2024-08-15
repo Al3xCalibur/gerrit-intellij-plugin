@@ -13,67 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.google.common.base.Optional;
-import com.intellij.notification.Notification;
-import com.intellij.notification.NotificationListener;
-import com.intellij.notification.NotificationType;
-import com.intellij.openapi.project.Project;
+import com.google.common.base.Optional
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationListener
+import com.intellij.notification.NotificationType
+import com.intellij.openapi.project.Project
 
 /**
  * @author Thomas Forrer
  */
-public final class NotificationBuilder {
-    private static final String GERRIT_NOTIFICATION_GROUP = "gerrit";
+class NotificationBuilder(val project: Project?, private val title: String, private val message: String?) {
+    private var type = NotificationType.INFORMATION
 
-    private final Project project;
-    private final String title;
-    private final String message;
-    private NotificationType type = NotificationType.INFORMATION;
+    private var listener: Optional<NotificationListener> = Optional.absent()
+    private var showBalloon = true
 
-    private Optional<NotificationListener> listener = Optional.absent();
-    private boolean showBalloon = true;
-
-    public NotificationBuilder(Project project, String title, String message) {
-        this.project = project;
-        this.title = title;
-        this.message = message;
+    fun listener(listener: NotificationListener): NotificationBuilder {
+        this.listener = Optional.of(listener)
+        return this
     }
 
-    public NotificationBuilder listener(NotificationListener listener) {
-        this.listener = Optional.of(listener);
-        return this;
+    fun type(type: NotificationType): NotificationBuilder {
+        this.type = type
+        return this
     }
 
-    public NotificationBuilder type(NotificationType type) {
-        this.type = type;
-        return this;
+    fun showBalloon(): NotificationBuilder {
+        this.showBalloon = true
+        return this
     }
 
-    public NotificationBuilder showBalloon() {
-        this.showBalloon = true;
-        return this;
+    fun hideBalloon(): NotificationBuilder {
+        this.showBalloon = false
+        return this
     }
 
-    public NotificationBuilder hideBalloon() {
-        this.showBalloon = false;
-        return this;
-    }
-
-    protected Notification get() {
-        Notification notification = new Notification(GERRIT_NOTIFICATION_GROUP, title, message, type);
-        if (listener.isPresent()) {
-            notification.setListener(listener.get());
+    fun get(): Notification {
+        val notification = Notification(GERRIT_NOTIFICATION_GROUP, title, message!!, type)
+        if (listener.isPresent) {
+            notification.setListener(listener.get())
         }
         if (!showBalloon) {
-            notification.expire();
+            notification.expire()
         }
-        return notification;
+        return notification
     }
 
-    protected Project getProject() {
-        return project;
+    companion object {
+        private const val GERRIT_NOTIFICATION_GROUP = "gerrit"
     }
 }

@@ -13,45 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.inject.Inject;
-
-import java.util.Observable;
-import java.util.Observer;
-import java.util.Set;
+import com.google.common.base.Joiner
+import com.google.common.collect.ImmutableList
+import com.google.common.collect.Iterables
+import com.google.inject.Inject
+import java.util.*
 
 /**
  * @author Thomas Forrer
  */
-public class GerritChangesFilters extends Observable implements Observer {
-    private final Set<AbstractChangesFilter> filters;
-
-    @Inject
-    public GerritChangesFilters(Set<AbstractChangesFilter> filters) {
-        this.filters = filters;
-        for (AbstractChangesFilter filter : this.filters) {
-            filter.addObserver(this);
+class GerritChangesFilters @Inject constructor(val filters: Set<AbstractChangesFilter>) : Observable(),
+    Observer {
+    init {
+        for (filter in this.filters) {
+            filter.addObserver(this)
         }
     }
 
-    @Override
-    public void update(Observable observable, Object o) {
-        setChanged();
-        notifyObservers();
+    override fun update(observable: Observable, o: Any) {
+        setChanged()
+        notifyObservers()
     }
 
-    public String getQuery() {
-        return Joiner.on("+").skipNulls()
-                .join(Iterables.transform(filters, ChangesFilter::getSearchQueryPart));
-    }
+    val query: String
+        get() = filters.mapNotNull { it.searchQueryPart }.joinToString("+")
 
-    public Iterable<ChangesFilter> getFilters() {
-        return ImmutableList.<ChangesFilter>copyOf(filters);
+    fun getFilters(): Iterable<ChangesFilter> {
+        return ImmutableList.copyOf<ChangesFilter>(filters)
     }
 }

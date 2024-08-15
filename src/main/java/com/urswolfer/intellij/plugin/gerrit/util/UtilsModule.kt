@@ -15,18 +15,15 @@
  *  * limitations under the License.
  *
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.google.inject.AbstractModule;
+import com.google.inject.AbstractModule
 
 /**
  * @author Thomas Forrer
  */
-public class UtilsModule extends AbstractModule {
-
-    @Override
-    protected void configure() {
-        bind(PathUtils.class);
+class UtilsModule : AbstractModule() {
+    override fun configure() {
+        bind(PathUtils::class.java)
     }
 }

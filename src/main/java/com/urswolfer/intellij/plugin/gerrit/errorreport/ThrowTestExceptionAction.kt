@@ -13,25 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.errorreport
 
-package com.urswolfer.intellij.plugin.gerrit.errorreport;
-
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.project.DumbAwareAction;
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.DumbAwareAction
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // test-action - do not enable!
-public class ThrowTestExceptionAction extends DumbAwareAction {
-
-    protected ThrowTestExceptionAction() {
-        super("Throw Test Exception", "Throw Test Exception", AllIcons.General.Error);
-    }
-
-    @Override
-    public void actionPerformed(AnActionEvent e) {
-        throw new RuntimeException("This is a test exception.");
+// test-action - do not enable!
+class ThrowTestExceptionAction : DumbAwareAction("Throw Test Exception", "Throw Test Exception", AllIcons.General.Error) {
+    override fun actionPerformed(e: AnActionEvent) {
+        throw RuntimeException("This is a test exception.")
     }
 }

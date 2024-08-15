@@ -11,133 +11,130 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package com.urswolfer.intellij.plugin.gerrit.util.safehtml
 
-package com.urswolfer.intellij.plugin.gerrit.util.safehtml;
+import java.util.*
 
 // based on: https://gerrit.googlesource.com/gerrit/+/master/gerrit-gwtexpui/src/main/java/com/google/gwtexpui/safehtml/client/
 
-import java.util.ArrayList;
-import java.util.HashMap;
+/** Lightweight map of names/values for element attribute construction.  */
+internal class AttMap {
+    private val names = ArrayList<String>()
+    private val values = ArrayList<String>()
 
-/** Lightweight map of names/values for element attribute construction. */
-class AttMap {
-  private static final Tag ANY = new AnyTag();
-  private static final HashMap<String, Tag> TAGS;
+    private var tag: Tag? = ANY
+    private var live = 0
 
-  static {
-    final Tag src = new SrcTag();
-    TAGS = new HashMap<String, Tag>();
-    TAGS.put("a", new AnchorTag());
-    TAGS.put("form", new FormTag());
-    TAGS.put("img", src);
-    TAGS.put("script", src);
-    TAGS.put("frame", src);
-  }
-
-  private final ArrayList<String> names = new ArrayList<String>();
-  private final ArrayList<String> values = new ArrayList<String>();
-
-  private Tag tag = ANY;
-  private int live;
-
-  void reset(String tagName) {
-    tag = TAGS.get(tagName.toLowerCase());
-    if (tag == null) {
-      tag = ANY;
-    }
-    live = 0;
-  }
-
-  void onto(Buffer raw, SafeHtmlBuilder esc) {
-    for (int i = 0; i < live; i++) {
-      final String v = values.get(i);
-      if (!v.isEmpty()) {
-        raw.append(" ");
-        raw.append(names.get(i));
-        raw.append("=\"");
-        esc.append(v);
-        raw.append("\"");
-      }
-    }
-  }
-
-  String get(String name) {
-    name = name.toLowerCase();
-
-    for (int i = 0; i < live; i++) {
-      if (name.equals(names.get(i))) {
-        return values.get(i);
-      }
-    }
-    return "";
-  }
-
-  void set(String name, String value) {
-    name = name.toLowerCase();
-    tag.assertSafe(name, value);
-
-    for (int i = 0; i < live; i++) {
-      if (name.equals(names.get(i))) {
-        values.set(i, value);
-        return;
-      }
+    fun reset(tagName: String) {
+        tag = TAGS[tagName.lowercase(Locale.getDefault())]
+        if (tag == null) {
+            tag = ANY
+        }
+        live = 0
     }
 
-    final int i = live++;
-    if (names.size() < live) {
-      names.add(name);
-      values.add(value);
-    } else {
-      names.set(i, name);
-      values.set(i, value);
+    fun onto(raw: Buffer, esc: SafeHtmlBuilder) {
+        for (i in 0 until live) {
+            val v = values[i]
+            if (!v.isEmpty()) {
+                raw.append(" ")
+                raw.append(names[i])
+                raw.append("=\"")
+                esc.append(v)
+                raw.append("\"")
+            }
+        }
     }
-  }
 
-  private static void assertNotJavascriptUrl(String value) {
-    if (value.startsWith("#")) {
-      // common in GWT, and safe, so bypass further checks
+    fun get(name: String): String {
+        var name = name
+        name = name.lowercase(Locale.getDefault())
 
-    } else if (value.trim().toLowerCase().startsWith("javascript:")) {
-      // possibly unsafe, we could have random user code here
-      // we can't tell if its safe or not so we refuse to accept
-      //
-      throw new RuntimeException("javascript unsafe in href: " + value);
+        for (i in 0 until live) {
+            if (name == names[i]) {
+                return values[i]
+            }
+        }
+        return ""
     }
-  }
 
-  private interface Tag {
-    void assertSafe(String name, String value);
-  }
+    fun set(name: String, value: String) {
+        var name = name
+        name = name.lowercase(Locale.getDefault())
+        tag!!.assertSafe(name, value)
 
-  private static class AnyTag implements Tag {
-    @Override
-    public void assertSafe(String name, String value) {}
-  }
+        for (i in 0 until live) {
+            if (name == names[i]) {
+                values[i] = value
+                return
+            }
+        }
 
-  private static class AnchorTag implements Tag {
-    @Override
-    public void assertSafe(String name, String value) {
-      if ("href".equals(name)) {
-        assertNotJavascriptUrl(value);
-      }
+        val i = live++
+        if (names.size < live) {
+            names.add(name)
+            values.add(value)
+        } else {
+            names[i] = name
+            values[i] = value
+        }
     }
-  }
 
-  private static class FormTag implements Tag {
-    @Override
-    public void assertSafe(String name, String value) {
-      if ("action".equals(name)) {
-        assertNotJavascriptUrl(value);
-      }
+    private interface Tag {
+        fun assertSafe(name: String, value: String)
     }
-  }
 
-  private static class SrcTag implements Tag {
-    @Override
-    public void assertSafe(String name, String value) {
-      if ("src".equals(name)) {
-        assertNotJavascriptUrl(value);
-      }
+    private class AnyTag : Tag {
+        override fun assertSafe(name: String, value: String) {}
     }
-  }
+
+    private class AnchorTag : Tag {
+        override fun assertSafe(name: String, value: String) {
+            if ("href" == name) {
+                assertNotJavascriptUrl(value)
+            }
+        }
+    }
+
+    private class FormTag : Tag {
+        override fun assertSafe(name: String, value: String) {
+            if ("action" == name) {
+                assertNotJavascriptUrl(value)
+            }
+        }
+    }
+
+    private class SrcTag : Tag {
+        override fun assertSafe(name: String, value: String) {
+            if ("src" == name) {
+                assertNotJavascriptUrl(value)
+            }
+        }
+    }
+
+    companion object {
+        private val ANY: Tag = AnyTag()
+        private val TAGS: HashMap<String, Tag>
+
+        init {
+            val src: Tag = SrcTag()
+            TAGS = HashMap()
+            TAGS["a"] = AnchorTag()
+            TAGS["form"] = FormTag()
+            TAGS["img"] = src
+            TAGS["script"] = src
+            TAGS["frame"] = src
+        }
+
+        private fun assertNotJavascriptUrl(value: String) {
+            if (value.startsWith("#")) {
+                // common in GWT, and safe, so bypass further checks
+            } else if (value.trim { it <= ' ' }.lowercase(Locale.getDefault()).startsWith("javascript:")) {
+                // possibly unsafe, we could have random user code here
+                // we can't tell if its safe or not so we refuse to accept
+                //
+                throw RuntimeException("javascript unsafe in href: $value")
+            }
+        }
+    }
 }

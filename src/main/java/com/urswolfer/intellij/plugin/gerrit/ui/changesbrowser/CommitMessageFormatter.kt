@@ -13,18 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser
 
-package com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.Iterables;
-import com.intellij.vcs.log.Hash;
-import git4idea.GitCommit;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
+import com.google.common.base.Joiner
+import com.google.common.collect.Iterables
+import git4idea.GitCommit
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * This class formats the commit message as similarly as possible to how Gerrit formats it.
@@ -40,58 +35,51 @@ import java.util.TimeZone;
  *
  * @author Thomas Forrer
  */
-public class CommitMessageFormatter {
-    private static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss Z";
+class CommitMessageFormatter(private val gitCommit: GitCommit) {
+    val longCommitMessage: String
+        get() = String.format(
+            PATTERN,
+            parentLine,
+            gitCommit.author.name, gitCommit.author.email,
+            DATE_FORMAT.get().format(Date(gitCommit.authorTime)),
+            gitCommit.committer.name, gitCommit.committer.email,
+            DATE_FORMAT.get().format(gitCommit.commitTime),
+            gitCommit.fullMessage
+        )
 
-    private static final ThreadLocal<SimpleDateFormat> DATE_FORMAT = new ThreadLocal<SimpleDateFormat>() {
-        @Override
-        protected SimpleDateFormat initialValue() {
-            SimpleDateFormat dateFormat = new SimpleDateFormat(DATE_PATTERN);
-            dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-            return dateFormat;
+    private val parentLine: String
+        get() {
+            val parents = gitCommit.parents
+            if (parents.size == 1) {
+                val parent = Iterables.getOnlyElement(parents)
+                return String.format(PARENT_PATTERN, parent!!.asString())
+            } else if (parents.size > 1) {
+                val allParents = Joiner.on(MERGE_PATTERN_DELIMITER).join(parents)
+                return String.format(MERGE_PATTERN, allParents)
+            } else {
+                return ""
+            }
         }
-    };
-    private static final String PARENT_PATTERN = "Parent:     %s\n";
-    private static final String MERGE_PATTERN =
-            "Merge Of:   %s\n";
-    private static final String MERGE_PATTERN_DELIMITER =
-            "\n            ";
-    private static final String PATTERN =
-            "%s" +
-            "Author:     %s <%s>\n" +
-            "AuthorDate: %s\n" +
-            "Commit:     %s <%s>\n" +
-            "CommitDate: %s\n" +
-            "\n" +
-            "%s\n";
 
-    private final GitCommit gitCommit;
+    companion object {
+        private const val DATE_PATTERN = "yyyy-MM-dd HH:mm:ss Z"
 
-    public CommitMessageFormatter(GitCommit gitCommit) {
-        this.gitCommit = gitCommit;
-    }
-
-    public String getLongCommitMessage() {
-        return String.format(PATTERN,
-                getParentLine(),
-                gitCommit.getAuthor().getName(), gitCommit.getAuthor().getEmail(),
-                DATE_FORMAT.get().format(new Date(gitCommit.getAuthorTime())),
-                gitCommit.getCommitter().getName(), gitCommit.getCommitter().getEmail(),
-                DATE_FORMAT.get().format(gitCommit.getCommitTime()),
-                gitCommit.getFullMessage()
-        );
-    }
-
-    private String getParentLine() {
-        List<Hash> parents = gitCommit.getParents();
-        if (parents.size() == 1) {
-            Hash parent = Iterables.getOnlyElement(parents);
-            return String.format(PARENT_PATTERN, parent.asString());
-        } else if (parents.size() > 1) {
-            String allParents = Joiner.on(MERGE_PATTERN_DELIMITER).join(parents);
-            return String.format(MERGE_PATTERN, allParents);
-        } else {
-            return "";
+        private val DATE_FORMAT: ThreadLocal<SimpleDateFormat> = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat {
+                val dateFormat = SimpleDateFormat(DATE_PATTERN)
+                dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+                return dateFormat
+            }
         }
+        private const val PARENT_PATTERN = "Parent:     %s\n"
+        private const val MERGE_PATTERN = "Merge Of:   %s\n"
+        private const val MERGE_PATTERN_DELIMITER = "\n            "
+        private const val PATTERN = "%s" +
+                "Author:     %s <%s>\n" +
+                "AuthorDate: %s\n" +
+                "Commit:     %s <%s>\n" +
+                "CommitDate: %s\n" +
+                "\n" +
+                "%s\n"
     }
 }

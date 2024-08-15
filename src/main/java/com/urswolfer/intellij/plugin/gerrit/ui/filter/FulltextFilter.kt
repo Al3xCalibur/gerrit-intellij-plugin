@@ -13,57 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vcs.ui.SearchFieldAction;
-import org.jetbrains.annotations.Nullable;
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.ui.SearchFieldAction
 
 /**
  * @author Thomas Forrer
  */
-public class FulltextFilter extends AbstractChangesFilter {
+class FulltextFilter : AbstractChangesFilter() {
+    private var value = ""
 
-    private String value = "";
-
-    @Override
-    public AnAction getAction(final Project project) {
-        return new SearchFieldAction("Filter: ") {
-            @Override
-            public void actionPerformed(AnActionEvent event) {
-                String newValue = getText().trim();
+    override fun getAction(project: Project?): AnAction {
+        return object : SearchFieldAction("Filter: ") {
+            override fun actionPerformed(event: AnActionEvent) {
+                val newValue = text.trim { it <= ' ' }
                 if (isNewValue(newValue)) {
-                    value = newValue;
-                    setChanged();
-                    notifyObservers(project);
+                    value = newValue
+                    setChanged()
+                    notifyObservers(project)
                 }
             }
 
-            private boolean isNewValue(String newValue) {
-                return !newValue.equals(value);
+            private fun isNewValue(newValue: String): Boolean {
+                return newValue != value
             }
-        };
+        }
     }
 
-    @Override
-    @Nullable
-    public String getSearchQueryPart() {
-        return !value.isEmpty() ? "(" + specialEncodeFulltextQuery(value) + ")" : null;
-    }
+    override val searchQueryPart: String?
+        get() = if (!value.isEmpty()) "(" + specialEncodeFulltextQuery(value) + ")" else null
 
-    /**
-     * Queries have some special encoding. {@code URLEncoder.encode(query, "UTF-8")} does not
-     * produce correct encoding for the query. It (falsely) encodes brackets, which are expected
-     * to remain in the query string as is... This implementation aims to encode only the most
-     * commonly used character is the query.
-     * @param query a query string to encode
-     * @return an encoded version of the passed {@code query}
-     */
-    public static String specialEncodeFulltextQuery(String query) {
-        return query
+    companion object {
+        /**
+         * Queries have some special encoding. `URLEncoder.encode(query, "UTF-8")` does not
+         * produce correct encoding for the query. It (falsely) encodes brackets, which are expected
+         * to remain in the query string as is... This implementation aims to encode only the most
+         * commonly used character is the query.
+         * @param query a query string to encode
+         * @return an encoded version of the passed `query`
+         */
+        fun specialEncodeFulltextQuery(query: String): String {
+            return query
                 .replace("{", "%7B")
                 .replace("}", "%7D")
                 .replace("+", "%2B")
@@ -73,6 +66,7 @@ public class FulltextFilter extends AbstractChangesFilter {
                 .replace("%", "%25")
                 .replace("<", "%3C")
                 .replace(">", "%3E")
-                .replace("^", "%5E");
+                .replace("^", "%5E")
+        }
     }
 }

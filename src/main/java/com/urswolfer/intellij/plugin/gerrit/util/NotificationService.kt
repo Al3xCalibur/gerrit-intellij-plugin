@@ -13,30 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.intellij.notification.NotificationType;
+import com.intellij.notification.NotificationType
 
 /**
  * Easy access to open IDE's notification bus.
  *
  * @author Thomas Forrer
  */
-public class NotificationService {
-    public void notifyError(NotificationBuilder notificationBuilder) {
-        notify(notificationBuilder.type(NotificationType.ERROR));
-    }
-    
-    public void notifyWarning(NotificationBuilder notificationBuilder) {
-        notify(notificationBuilder.type(NotificationType.WARNING));
+class NotificationService {
+    fun notifyError(notificationBuilder: NotificationBuilder) {
+        notify(notificationBuilder.type(NotificationType.ERROR))
     }
 
-    public void notifyInformation(NotificationBuilder notificationBuilder) {
-        notify(notificationBuilder.type(NotificationType.INFORMATION));
+    fun notifyWarning(notificationBuilder: NotificationBuilder?) {
+        notify(notificationBuilder!!.type(NotificationType.WARNING))
     }
 
-    public void notify(NotificationBuilder notificationBuilder) {
-        notificationBuilder.get().notify(notificationBuilder.getProject());
+    fun notifyInformation(notificationBuilder: NotificationBuilder?) {
+        notify(notificationBuilder!!.type(NotificationType.INFORMATION))
+    }
+
+    fun notify(notificationBuilder: NotificationBuilder?) {
+        notificationBuilder!!.get().notify(notificationBuilder.project)
     }
 }

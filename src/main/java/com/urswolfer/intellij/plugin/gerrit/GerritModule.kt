@@ -13,80 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit
 
-package com.urswolfer.intellij.plugin.gerrit;
-
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Provider;
-import com.google.inject.Singleton;
-import com.intellij.openapi.application.ApplicationManager;
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.intellij.plugin.gerrit.extension.GerritCheckoutProvider;
-import com.urswolfer.intellij.plugin.gerrit.extension.GerritHttpAuthDataProvider;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import com.urswolfer.intellij.plugin.gerrit.push.GerritPushExtension;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritRestModule;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.ui.GerritToolWindow;
-import com.urswolfer.intellij.plugin.gerrit.ui.GerritUiModule;
-import com.urswolfer.intellij.plugin.gerrit.ui.action.GerritActionsModule;
-import com.urswolfer.intellij.plugin.gerrit.ui.diff.GerritDiffModule;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-import com.urswolfer.intellij.plugin.gerrit.util.UtilsModule;
+import com.google.common.base.Supplier
+import com.google.common.base.Suppliers
+import com.google.inject.*
+import com.intellij.openapi.application.ApplicationManager
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.intellij.plugin.gerrit.extension.GerritCheckoutProvider
+import com.urswolfer.intellij.plugin.gerrit.extension.GerritHttpAuthDataProvider
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import com.urswolfer.intellij.plugin.gerrit.push.GerritPushExtension
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritRestModule
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.ui.GerritToolWindow
+import com.urswolfer.intellij.plugin.gerrit.ui.GerritUiModule
+import com.urswolfer.intellij.plugin.gerrit.ui.action.GerritActionsModule
+import com.urswolfer.intellij.plugin.gerrit.ui.diff.GerritDiffModule
+import com.urswolfer.intellij.plugin.gerrit.util.NotificationService
+import com.urswolfer.intellij.plugin.gerrit.util.UtilsModule
 
 /**
  * @author Thomas Forrer
  */
-public class GerritModule extends AbstractModule {
+open class GerritModule protected constructor() : AbstractModule() {
+    override fun configure() {
+        installOpenIdeDependenciesModule()
 
-    protected static final Supplier<Injector> injector = Suppliers.memoize(() -> Guice.createInjector(new GerritModule()));
+        setupSettingsProvider()
 
-    public static <T> T getInstance(Class<T> type) {
-        return injector.get().getInstance(type);
+        bind(NotificationService::class.java)
+        bind(SelectedRevisions::class.java).toInstance(SelectedRevisions())
+
+        bind(GerritGitUtil::class.java)
+        bind(GerritUtil::class.java)
+
+        bind(GerritToolWindow::class.java)
+        bind(GerritCheckoutProvider::class.java)
+        bind(GerritHttpAuthDataProvider::class.java)
+        bind(GerritPushExtension::class.java)
+
+        install(UtilsModule())
+        install(GerritActionsModule())
+        install(GerritDiffModule())
+        install(GerritRestModule())
+        install(GerritUiModule())
     }
 
-    protected GerritModule() {}
-
-    @Override
-    protected void configure() {
-        installOpenIdeDependenciesModule();
-
-        setupSettingsProvider();
-
-        bind(NotificationService.class);
-        bind(SelectedRevisions.class).toInstance(new SelectedRevisions());
-
-        bind(GerritGitUtil.class);
-        bind(GerritUtil.class);
-
-        bind(GerritToolWindow.class);
-        bind(GerritCheckoutProvider.class);
-        bind(GerritHttpAuthDataProvider.class);
-        bind(GerritPushExtension.class);
-
-        install(new UtilsModule());
-        install(new GerritActionsModule());
-        install(new GerritDiffModule());
-        install(new GerritRestModule());
-        install(new GerritUiModule());
-    }
-
-    protected void setupSettingsProvider() {
-        Provider<GerritSettings> settingsProvider = () -> {
+    protected open fun setupSettingsProvider() {
+        val settingsProvider = Provider {
             // GerritSettings instance needs to be retrieved from ServiceManager, need to inject the Logger manually...
-            GerritSettings gerritSettings = ApplicationManager.getApplication().getService(GerritSettings.class);
-            gerritSettings.setLog(OpenIdeDependenciesModule.LOG);
-            return gerritSettings;
-        };
-        bind(GerritSettings.class).toProvider(settingsProvider).in(Singleton.class);
-        bind(GerritAuthData.class).toProvider(settingsProvider).in(Singleton.class);
+            val gerritSettings = ApplicationManager.getApplication().getService(
+                GerritSettings::class.java
+            )
+            gerritSettings.setLog(OpenIdeDependenciesModule.LOG)
+            gerritSettings
+        }
+        bind(GerritSettings::class.java).toProvider(settingsProvider).`in`(Singleton::class.java)
+        bind(GerritAuthData::class.java).toProvider(settingsProvider).`in`(Singleton::class.java)
     }
 
-    protected void installOpenIdeDependenciesModule() {
-        install(new OpenIdeDependenciesModule());
+    protected open fun installOpenIdeDependenciesModule() {
+        install(OpenIdeDependenciesModule())
+    }
+
+    companion object {
+        val injector: Supplier<Injector> = Suppliers.memoize { Guice.createInjector(GerritModule()) }
+
+        inline fun <reified T> getInstance(): T {
+            return injector.get().getInstance(T::class.java)
+        }
     }
 }

@@ -14,18 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.DialogWrapper;
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogWrapper
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import javax.swing.Action
+import javax.swing.JComponent
 
 /**
  * Parts based on org.jetbrains.plugins.github.ui.GithubLoginDialog
@@ -33,75 +31,64 @@ import javax.swing.*;
  * @author oleg
  * @author Urs Wolfer
  */
-public class LoginDialog extends DialogWrapper {
-
-    private final Logger log;
-
-    private final LoginPanel loginPanel;
-    private final Project project;
-    private final GerritUtil gerritUtil;
-    private final GerritSettings gerritSettings;
+class LoginDialog(
+    private val project: Project?,
+    private val gerritSettings: GerritSettings?,
+    private val gerritUtil: GerritUtil?,
+    private val log: Logger?
+) : DialogWrapper(
+    project, true
+) {
+    private val loginPanel = LoginPanel(this)
 
     // TODO: login must be merged with tasks server settings
-    public LoginDialog(final Project project, final GerritSettings gerritSettings, final GerritUtil gerritUtil, Logger log) {
-        super(project, true);
-        this.gerritUtil = gerritUtil;
-        this.gerritSettings = gerritSettings;
-        this.project = project;
-        this.log = log;
-        loginPanel = new LoginPanel(this);
-        loginPanel.setHost(gerritSettings.getHost());
-        loginPanel.setLogin(gerritSettings.getLogin());
-        loginPanel.setPassword(gerritSettings.getPassword());
-        setTitle("Login to Gerrit");
-        setOKButtonText("Login");
-        init();
+    init {
+        loginPanel.host = gerritSettings!!.host
+        loginPanel.login = gerritSettings.login
+        loginPanel.password = gerritSettings.password
+        title = "Login to Gerrit"
+        setOKButtonText("Login")
+        init()
     }
 
-    @Override
-    @NotNull
-    protected Action[] createActions() {
-        return new Action[]{getOKAction(), getCancelAction(), getHelpAction()};
+    override fun createActions(): Array<Action> {
+        return arrayOf(okAction, cancelAction, helpAction)
     }
 
-    @Override
-    protected JComponent createCenterPanel() {
-        return loginPanel.getPanel();
+    override fun createCenterPanel(): JComponent {
+        return loginPanel.panel
     }
 
-    @Override
-    protected String getHelpId() {
-        return "login_to_gerrit";
+    override fun getHelpId(): String {
+        return "login_to_gerrit"
     }
 
-    @Override
-    public JComponent getPreferredFocusedComponent() {
-        return loginPanel.getPreferrableFocusComponent();
+    override fun getPreferredFocusedComponent(): JComponent {
+        return loginPanel.preferrableFocusComponent
     }
 
-    @Override
-    protected void doOKAction() {
-        final String login = loginPanel.getLogin();
-        final String password = loginPanel.getPassword();
-        final String host = loginPanel.getHost();
-        GerritAuthData.Basic gerritAuthData = new GerritAuthData.Basic(host, login, password);
+    override fun doOKAction() {
+        val login = loginPanel.login
+        val password = loginPanel.password
+        val host = loginPanel.host
+        val gerritAuthData = GerritAuthData.Basic(host, login, password)
         try {
-            boolean loggedSuccessfully = gerritUtil.checkCredentials(project, gerritAuthData);
+            val loggedSuccessfully = gerritUtil!!.checkCredentials(project, gerritAuthData)
             if (loggedSuccessfully) {
-                gerritSettings.setLogin(login);
-                gerritSettings.setPassword(password);
-                gerritSettings.setHost(host);
-                super.doOKAction();
+                gerritSettings!!.setLogin(login)
+                gerritSettings.setPassword(password)
+                gerritSettings.host = host!!
+                super.doOKAction()
             } else {
-                setErrorText("Can't login with given credentials");
+                setErrorText("Can't login with given credentials")
             }
-        } catch (Exception e) {
-            log.info(e);
-            setErrorText("Can't login: " + gerritUtil.getErrorTextFromException(e));
+        } catch (e: Exception) {
+            log!!.info(e)
+            setErrorText("Can't login: " + gerritUtil!!.getErrorTextFromException(e))
         }
     }
 
-    public void clearErrors() {
-        setErrorText(null);
+    fun clearErrors() {
+        setErrorText(null)
     }
 }

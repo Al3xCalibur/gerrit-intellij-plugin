@@ -13,40 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.rest
 
-package com.urswolfer.intellij.plugin.gerrit.rest;
-
-import com.google.inject.Inject;
-import com.google.inject.Provider;
-import com.urswolfer.gerrit.client.rest.GerritRestApi;
-import com.urswolfer.gerrit.client.rest.GerritRestApiFactory;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
+import com.google.inject.Inject
+import com.google.inject.Provider
+import com.urswolfer.gerrit.client.rest.GerritRestApi
+import com.urswolfer.gerrit.client.rest.GerritRestApiFactory
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
 
 /**
  * @author Urs Wolfer
  */
-public class GerritApiProvider implements Provider<GerritRestApi> {
-
+class GerritApiProvider @Inject constructor(
+    private val gerritSettings: GerritSettings,
+    private val certificateManagerClientBuilderExtension: CertificateManagerClientBuilderExtension,
+    private val loggerHttpClientBuilderExtension: LoggerHttpClientBuilderExtension,
+    private val proxyHttpClientBuilderExtension: ProxyHttpClientBuilderExtension,
+    private val userAgentClientBuilderExtension: UserAgentClientBuilderExtension,
+    private val gerritRestApiFactory: GerritRestApiFactory
+) : Provider<GerritRestApi> {
     @Inject
-    private GerritSettings gerritSettings;
-    @Inject
-    private CertificateManagerClientBuilderExtension certificateManagerClientBuilderExtension;
-    @Inject
-    private LoggerHttpClientBuilderExtension loggerHttpClientBuilderExtension;
-    @Inject
-    private ProxyHttpClientBuilderExtension proxyHttpClientBuilderExtension;
-    @Inject
-    private UserAgentClientBuilderExtension userAgentClientBuilderExtension;
-    @Inject
-    private GerritRestApiFactory gerritRestApiFactory;
-
-    @Override
-    public GerritRestApi get() {
+    override fun get(): GerritRestApi {
         return gerritRestApiFactory.create(
             gerritSettings,
             certificateManagerClientBuilderExtension,
             loggerHttpClientBuilderExtension,
             proxyHttpClientBuilderExtension,
-            userAgentClientBuilderExtension);
+            userAgentClientBuilderExtension
+        )
     }
 }

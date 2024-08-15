@@ -13,30 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.inject.AbstractModule;
+import com.google.inject.AbstractModule
 
 /**
  * @author Thomas Forrer
  */
-public class GerritActionsModule extends AbstractModule {
+class GerritActionsModule : AbstractModule() {
+    override fun configure() {
+        bind(ReviewActionFactory::class.java)
 
-    @Override
-    protected void configure() {
-        bind(ReviewActionFactory.class);
-
-        bind(AddReviewersAction.class);
-        bind(FetchAction.class);
-        bind(CheckoutAction.class);
-        bind(CherryPickAction.class);
-        bind(CompareBranchAction.class);
-        bind(OpenInBrowserAction.class);
-        bind(SettingsAction.class);
-        bind(SubmitAction.class);
-        bind(AbandonAction.class);
-        bind(RefreshAction.class);
-        bind(StarAction.class);
+        bind(AddReviewersAction::class.java)
+        bind(FetchAction::class.java)
+        bind(CheckoutAction::class.java)
+        bind(CherryPickAction::class.java)
+        bind(CompareBranchAction::class.java)
+        bind(OpenInBrowserAction::class.java)
+        bind(SettingsAction::class.java)
+        bind(SubmitAction::class.java)
+        bind(AbandonAction::class.java)
+        bind(RefreshAction::class.java)
+        bind(StarAction::class.java)
     }
 }

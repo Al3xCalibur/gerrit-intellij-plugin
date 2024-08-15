@@ -11,17 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
+class AssigneeFilter : AbstractUserFilter() {
+    override val actionLabel: String
+        get() = "Assignee"
 
-public class AssigneeFilter extends AbstractUserFilter {
-    @Override
-    public String getActionLabel() {
-        return "Assignee";
-    }
-
-    @Override
-    public String getQueryField() {
-        return "assignee";
-    }
+    override val queryField: String
+        get() = "assignee"
 }

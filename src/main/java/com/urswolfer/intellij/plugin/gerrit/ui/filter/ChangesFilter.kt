@@ -13,25 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.project.Project;
-import org.jetbrains.annotations.Nullable;
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.project.Project
 
 /**
  * @author Thomas Forrer
  */
-public interface ChangesFilter {
+interface ChangesFilter {
     /**
      * @return an action to be included in the toolbar
      */
-    AnAction getAction(Project project);
+    fun getAction(project: Project?): AnAction
 
     /**
      * @return a part to be included in the search query, null otherwise
      */
-    @Nullable
-    String getSearchQueryPart();
+    val searchQueryPart: String?
 }

@@ -13,56 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.inject.Inject;
-import com.intellij.ide.BrowserUtil;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import com.urswolfer.intellij.plugin.gerrit.GerritSettings;
-import icons.MyIcons;
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import com.urswolfer.intellij.plugin.gerrit.GerritSettings
+import icons.MyIcons
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class OpenInBrowserAction extends AbstractChangeAction {
+// proxy class below is registered
+open class OpenInBrowserAction :
+    AbstractChangeAction("Open in Gerrit", "Open corresponding link in browser", MyIcons.Gerrit) {
     @Inject
-    private GerritSettings gerritSettings;
+    private lateinit var gerritSettings: GerritSettings
 
-    public OpenInBrowserAction() {
-        super("Open in Gerrit", "Open corresponding link in browser", MyIcons.Gerrit);
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val selectedChange = getSelectedChange(anActionEvent) ?: return
+
+        val urlToOpen = getUrl(selectedChange)
+        BrowserUtil.browse(urlToOpen)
     }
 
-    @Override
-    public void actionPerformed(AnActionEvent anActionEvent) {
-        Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
-        }
-        String urlToOpen = getUrl(selectedChange.get());
-        BrowserUtil.browse(urlToOpen);
+    private fun getUrl(change: ChangeInfo): String {
+        val url = gerritSettings.host
+        val changeNumber = change._number
+        return "$url/$changeNumber"
     }
 
-    private String getUrl(ChangeInfo change) {
-        String url = gerritSettings.getHost();
-        int changeNumber = change._number;
-        return String.format("%s/%s", url, changeNumber);
-    }
+    class Proxy : OpenInBrowserAction() {
+        private val delegate: OpenInBrowserAction = GerritModule.getInstance<OpenInBrowserAction>()
 
-    public static class Proxy extends OpenInBrowserAction {
-        private final OpenInBrowserAction delegate;
-
-        public Proxy() {
-            delegate = GerritModule.getInstance(OpenInBrowserAction.class);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

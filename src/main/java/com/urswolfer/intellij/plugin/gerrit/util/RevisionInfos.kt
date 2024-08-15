@@ -13,26 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.google.common.primitives.Ints;
-import com.google.gerrit.extensions.common.RevisionInfo;
-
-import java.util.Comparator;
-import java.util.Map;
+import com.google.common.primitives.Ints
+import com.google.gerrit.extensions.common.RevisionInfo
 
 /**
  * @author Thomas Forrer
  */
-public class RevisionInfos {
-    public static final Comparator<Map.Entry<String, RevisionInfo>> MAP_ENTRY_COMPARATOR =
-        (o1, o2) -> compare(o1.getValue(), o2.getValue());
+object RevisionInfos {
+    val MAP_ENTRY_COMPARATOR: Comparator<Map.Entry<String?, RevisionInfo>> =
+        Comparator { o1: Map.Entry<String?, RevisionInfo>, o2: Map.Entry<String?, RevisionInfo> ->
+            compare(
+                o1.value,
+                o2.value
+            )
+        }
 
-    private RevisionInfos(){
-    }
-
-    public static int compare(RevisionInfo r1, RevisionInfo r2) {
-        return Ints.compare(r1._number, r2._number);
+    fun compare(r1: RevisionInfo, r2: RevisionInfo): Int {
+        return Ints.compare(r1._number, r2._number)
     }
 }

@@ -13,211 +13,184 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui
 
-package com.urswolfer.intellij.plugin.gerrit.ui;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.RevisionInfo;
-import com.google.inject.Inject;
-import com.intellij.diff.chains.DiffRequestChain;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.CommonShortcuts;
-import com.intellij.openapi.actionSystem.Separator;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Pair;
-import com.intellij.openapi.vcs.VcsException;
-import com.intellij.openapi.vcs.changes.Change;
-import com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser;
-import com.intellij.openapi.vcs.changes.ui.ChangeNodeDecorator;
-import com.intellij.openapi.vcs.changes.ui.ChangesBrowserNodeRenderer;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.ui.IdeBorderFactory;
-import com.intellij.ui.SideBorder;
-import com.intellij.ui.SimpleColoredComponent;
-import com.intellij.ui.table.TableView;
-import com.intellij.util.Consumer;
-import com.intellij.util.containers.ContainerUtil;
-import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions;
-import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil;
-import com.urswolfer.intellij.plugin.gerrit.git.RevisionFetcher;
-import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil;
-import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.ChangesWithCommitMessageProvider;
-import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.CommitDiffBuilder;
-import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.SelectBaseRevisionAction;
-import com.urswolfer.intellij.plugin.gerrit.util.GerritUserDataKeys;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationBuilder;
-import com.urswolfer.intellij.plugin.gerrit.util.NotificationService;
-import git4idea.GitCommit;
-import git4idea.history.GitHistoryUtils;
-import git4idea.repo.GitRepository;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Observable;
-import java.util.Observer;
-import java.util.Set;
-import java.util.concurrent.Callable;
+import com.google.common.base.Optional
+import com.google.common.collect.*
+import com.google.gerrit.extensions.common.*
+import com.google.inject.Inject
+import com.intellij.diff.chains.DiffRequestChain
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.VcsException
+import com.intellij.openapi.vcs.changes.*
+import com.intellij.openapi.vcs.changes.committed.CommittedChangesBrowser
+import com.intellij.openapi.vcs.changes.ui.ChangeNodeDecorator
+import com.intellij.openapi.vcs.changes.ui.ChangesBrowserNodeRenderer
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.IdeBorderFactory
+import com.intellij.ui.SideBorder
+import com.intellij.ui.SimpleColoredComponent
+import com.intellij.util.containers.ContainerUtil
+import com.urswolfer.intellij.plugin.gerrit.SelectedRevisions
+import com.urswolfer.intellij.plugin.gerrit.git.GerritGitUtil
+import com.urswolfer.intellij.plugin.gerrit.git.RevisionFetcher
+import com.urswolfer.intellij.plugin.gerrit.rest.GerritUtil
+import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.ChangesWithCommitMessageProvider
+import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.CommitDiffBuilder
+import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.CommitDiffBuilder.ChangesProvider
+import com.urswolfer.intellij.plugin.gerrit.ui.changesbrowser.SelectBaseRevisionAction
+import com.urswolfer.intellij.plugin.gerrit.util.*
+import git4idea.GitCommit
+import git4idea.history.GitHistoryUtils
+import java.util.*
 
 /**
  * @author Thomas Forrer
  */
-public class RepositoryChangesBrowserProvider {
-    @Inject
-    private GerritGitUtil gerritGitUtil;
-    @Inject
-    private GerritUtil gerritUtil;
-    @Inject
-    private NotificationService notificationService;
-    @Inject
-    private Logger log;
-    @Inject
-    private Set<GerritChangeNodeDecorator> changeNodeDecorators;
-    @Inject
-    private SelectedRevisions selectedRevisions;
+class RepositoryChangesBrowserProvider @Inject constructor(
+    private val gerritGitUtil: GerritGitUtil,
+    private val gerritUtil: GerritUtil,
+    private val notificationService: NotificationService,
+    private val log: Logger,
+    private val changeNodeDecorators: Set<GerritChangeNodeDecorator>,
+    private val selectedRevisions: SelectedRevisions
+) {
+    private lateinit var selectBaseRevisionAction: SelectBaseRevisionAction
 
-    private SelectBaseRevisionAction selectBaseRevisionAction;
+    fun get(project: Project, changeListPanel: GerritChangeListPanel): GerritRepositoryChangesBrowser {
+        selectBaseRevisionAction = SelectBaseRevisionAction(selectedRevisions)
 
-    public GerritRepositoryChangesBrowser get(Project project, GerritChangeListPanel changeListPanel) {
-        selectBaseRevisionAction = new SelectBaseRevisionAction(selectedRevisions);
+        val table = changeListPanel.table
 
-        TableView<ChangeInfo> table = changeListPanel.getTable();
+        val changesBrowser = GerritRepositoryChangesBrowser(project)
+        changesBrowser.diffAction.registerCustomShortcutSet(CommonShortcuts.getDiff(), table)
+        changesBrowser.viewerScrollPane.border = IdeBorderFactory.createBorder(SideBorder.LEFT or SideBorder.TOP)
+        changesBrowser.setChangeNodeDecorator(changesBrowser.changeNodeDecorator)
 
-        final GerritRepositoryChangesBrowser changesBrowser = new GerritRepositoryChangesBrowser(project);
-        changesBrowser.getDiffAction().registerCustomShortcutSet(CommonShortcuts.getDiff(), table);
-        changesBrowser.getViewerScrollPane().setBorder(IdeBorderFactory.createBorder(SideBorder.LEFT | SideBorder.TOP));
-        changesBrowser.setChangeNodeDecorator(changesBrowser.getChangeNodeDecorator());
-
-        changeListPanel.addListSelectionListener(changesBrowser::setSelectedChange);
-        return changesBrowser;
+        changeListPanel.addListSelectionListener { changeInfo: ChangeInfo ->
+            changesBrowser.setSelectedChange(
+                changeInfo
+            )
+        }
+        return changesBrowser
     }
 
-    private final class GerritRepositoryChangesBrowser extends CommittedChangesBrowser {
-        private ChangeInfo selectedChange;
-        private Optional<Pair<String, RevisionInfo>> baseRevision = Optional.absent();
-        private Project project;
+    inner class GerritRepositoryChangesBrowser(private val project: Project) : CommittedChangesBrowser(project) {
+        private var selectedChange: ChangeInfo? = null
+        private var baseRevision: Pair<String, RevisionInfo>? = null
 
-        public GerritRepositoryChangesBrowser(Project project) {
-            super(project);
-            this.project = project;
-            selectBaseRevisionAction.addRevisionSelectedListener(new SelectBaseRevisionAction.Listener() {
-                @Override
-                public void revisionSelected(Optional<Pair<String, RevisionInfo>> revisionInfo) {
-                    baseRevision = revisionInfo;
-                    updateChangesBrowser();
+        init {
+            selectBaseRevisionAction.addRevisionSelectedListener { revisionInfo: Pair<String, RevisionInfo>? ->
+                baseRevision = revisionInfo
+                updateChangesBrowser()
+            }
+            selectedRevisions.addObserver { o: Observable?, arg: Any ->
+                if (selectedChange != null && selectedChange!!.id == arg) {
+                    updateChangesBrowser()
                 }
-            });
-            selectedRevisions.addObserver((o, arg) -> {
-                if (selectedChange != null && selectedChange.id.equals(arg)) {
-                    updateChangesBrowser();
-                }
-            });
+            }
         }
 
-        @Override
-        protected void updateDiffContext(@NotNull DiffRequestChain chain) {
-            super.updateDiffContext(chain);
-            chain.putUserData(GerritUserDataKeys.CHANGE, selectedChange);
-            chain.putUserData(GerritUserDataKeys.BASE_REVISION, baseRevision);
+        override fun updateDiffContext(chain: DiffRequestChain) {
+            super.updateDiffContext(chain)
+            chain.putUserData<ChangeInfo>(GerritUserDataKeys.CHANGE, selectedChange)
+            chain.putUserData<Pair<String, RevisionInfo>>(
+                GerritUserDataKeys.BASE_REVISION,
+                baseRevision
+            )
         }
 
-        @Override
-        protected @NotNull List<AnAction> createToolbarActions() {
-            return ContainerUtil.prepend(super.createToolbarActions(), selectBaseRevisionAction, new Separator());
+        override fun createToolbarActions(): List<AnAction> {
+            return ContainerUtil.prepend(super.createToolbarActions(), selectBaseRevisionAction, Separator())
         }
 
-        protected void setSelectedChange(ChangeInfo changeInfo) {
-            selectedChange = changeInfo;
-            gerritUtil.getChangeDetails(changeInfo._number, project, changeDetails -> {
-                if (selectedChange.id.equals(changeDetails.id)) {
-                    selectedChange = changeDetails;
-                    baseRevision = Optional.absent();
-                    selectBaseRevisionAction.setSelectedChange(selectedChange);
-                    for (GerritChangeNodeDecorator decorator : changeNodeDecorators) {
-                        decorator.onChangeSelected(project, selectedChange);
+        fun setSelectedChange(changeInfo: ChangeInfo) {
+            selectedChange = changeInfo
+            gerritUtil.getChangeDetails(changeInfo._number, project) { changeDetails: ChangeInfo ->
+                if (selectedChange!!.id == changeDetails.id) {
+                    selectedChange = changeDetails
+                    baseRevision = null
+                    selectBaseRevisionAction.setSelectedChange(selectedChange)
+                    for (decorator in changeNodeDecorators) {
+                        decorator.onChangeSelected(project, selectedChange)
                     }
-                    updateChangesBrowser();
+                    updateChangesBrowser()
                 }
-            });
+            }
         }
 
-        protected void updateChangesBrowser() {
-            getViewer().setEmptyText("Loading...");
-            setChangesToDisplay(Collections.<Change>emptyList());
-            Optional<GitRepository> gitRepositoryOptional = gerritGitUtil.getRepositoryForGerritProject(project, selectedChange.project);
-            if (!gitRepositoryOptional.isPresent()) {
-                getViewer().setEmptyText("Diff cannot be displayed as no local repository was found");
-                return;
+        protected fun updateChangesBrowser() {
+            viewer.setEmptyText("Loading...")
+            setChangesToDisplay(emptyList())
+            val gitRepository = gerritGitUtil.getRepositoryForGerritProject(project, selectedChange!!.project)
+            if (gitRepository == null) {
+                viewer.setEmptyText("Diff cannot be displayed as no local repository was found")
+                return
             }
-            final GitRepository gitRepository = gitRepositoryOptional.get();
 
-            Map<String, RevisionInfo> revisions = selectedChange.revisions;
-            final String revisionId = selectedRevisions.get(selectedChange);
-            RevisionInfo currentRevision = revisions.get(revisionId);
-            RevisionFetcher revisionFetcher = new RevisionFetcher(gerritUtil, gerritGitUtil, notificationService, project, gitRepository)
-                .addRevision(revisionId, currentRevision);
-            if (baseRevision.isPresent()) {
-                revisionFetcher.addRevision(baseRevision.get().first, baseRevision.get().getSecond());
+            val revisions = selectedChange!!.revisions
+            val revisionId = selectedRevisions[selectedChange]
+            val currentRevision = revisions[revisionId]
+            val revisionFetcher =
+                RevisionFetcher(gerritUtil, gerritGitUtil, notificationService, project, gitRepository)
+                    .addRevision(revisionId, currentRevision)
+            val baseRevision = baseRevision
+            if (baseRevision != null) {
+                revisionFetcher.addRevision(baseRevision.first, baseRevision.second)
             }
-            revisionFetcher.fetch(() -> {
-                final Collection<Change> totalDiff;
+            revisionFetcher.fetch {
+                val totalDiff: Collection<Change>
                 try {
-                    VirtualFile gitRepositoryRoot = gitRepository.getRoot();
-                    CommitDiffBuilder.ChangesProvider changesProvider = new ChangesWithCommitMessageProvider();
-                    GitCommit currentCommit = getCommit(gitRepositoryRoot, revisionId);
-                    if (baseRevision.isPresent()) {
-                        GitCommit baseCommit = getCommit(gitRepositoryRoot, baseRevision.get().first);
-                        totalDiff = new CommitDiffBuilder(project, gitRepositoryRoot, baseCommit, currentCommit)
-                            .withChangesProvider(changesProvider).getDiff();
+                    val gitRepositoryRoot = gitRepository.root
+                    val changesProvider: ChangesProvider = ChangesWithCommitMessageProvider()
+                    val currentCommit = getCommit(gitRepositoryRoot, revisionId)
+                    if (baseRevision != null) {
+                        val baseCommit = getCommit(gitRepositoryRoot, baseRevision.first)
+                        totalDiff = CommitDiffBuilder(project, gitRepositoryRoot, baseCommit, currentCommit)
+                            .withChangesProvider(changesProvider).diff
                     } else {
-                        totalDiff = changesProvider.provide(currentCommit);
+                        totalDiff = changesProvider.provide(currentCommit)
                     }
-                } catch (VcsException e) {
-                    log.warn("Error getting Git commit details.", e);
-                    NotificationBuilder notification = new NotificationBuilder(
-                            project, "Cannot show change",
-                            "Git error occurred while getting commit. Please check if Gerrit is configured as remote " +
-                                    "for the currently used Git repository."
-                    );
-                    notificationService.notifyError(notification);
-                    return null;
+                } catch (e: VcsException) {
+                    log.warn("Error getting Git commit details.", e)
+                    val notification = NotificationBuilder(
+                        project, "Cannot show change",
+                        "Git error occurred while getting commit. Please check if Gerrit is configured as remote " +
+                                "for the currently used Git repository."
+                    )
+                    notificationService.notifyError(notification)
+                    return@fetch null
                 }
 
-                ApplicationManager.getApplication().invokeLater(() -> {
-                    getViewer().setEmptyText("No changes");
-                    setChangesToDisplay(Lists.newArrayList(totalDiff));
-                });
-                return null;
-            });
+                ApplicationManager.getApplication().invokeLater {
+                    viewer.setEmptyText("No changes")
+                    setChangesToDisplay(Lists.newArrayList(totalDiff))
+                }
+                null
+            }
         }
 
-        private GitCommit getCommit(VirtualFile gitRepositoryRoot, String revisionId) throws VcsException {
+        @Throws(VcsException::class)
+        private fun getCommit(gitRepositoryRoot: VirtualFile, revisionId: String?): GitCommit {
             // -1: limit; log exactly this commit; git show would do this job also, but there is no api in GitHistoryUtils
             // ("git show hash" <-> "git log hash -1")
-            List<GitCommit> history = GitHistoryUtils.history(project, gitRepositoryRoot, revisionId, "-1");
-            return Iterables.getOnlyElement(history);
+            val history = GitHistoryUtils.history(project, gitRepositoryRoot, revisionId, "-1")
+            return Iterables.getOnlyElement(history)
         }
 
-        private ChangeNodeDecorator getChangeNodeDecorator() {
-            return new ChangeNodeDecorator() {
-                @Override
-                public void decorate(Change change, SimpleColoredComponent component, boolean isShowFlatten) {
-                    for (GerritChangeNodeDecorator decorator : changeNodeDecorators) {
-                        decorator.decorate(project, change, component, selectedChange);
+        val changeNodeDecorator: ChangeNodeDecorator
+            get() = object : ChangeNodeDecorator {
+                override fun decorate(change: Change, component: SimpleColoredComponent, isShowFlatten: Boolean) {
+                    for (decorator in changeNodeDecorators) {
+                        decorator.decorate(project, change, component, selectedChange)
                     }
                 }
 
-                @Override
-                public void preDecorate(Change change, ChangesBrowserNodeRenderer renderer, boolean showFlatten) {
+                override fun preDecorate(change: Change, renderer: ChangesBrowserNodeRenderer, showFlatten: Boolean) {
                 }
-            };
-        }
+            }
     }
 }

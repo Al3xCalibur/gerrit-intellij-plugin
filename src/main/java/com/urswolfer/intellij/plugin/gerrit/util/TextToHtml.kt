@@ -13,27 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.util
 
-package com.urswolfer.intellij.plugin.gerrit.util;
-
-import com.urswolfer.intellij.plugin.gerrit.util.safehtml.SafeHtmlBuilder;
+import com.urswolfer.intellij.plugin.gerrit.util.safehtml.SafeHtml
 
 /**
  * @author Urs Wolfer
  */
-public final class TextToHtml {
-
-    private TextToHtml() {}
-
+object TextToHtml {
     /**
      * Converts plain text formatted with wiki-like syntax to HTML.
      */
-    public static String textToHtml(String text) {
+    @JvmStatic
+    fun textToHtml(text: String): String {
+        var text = text
         if (!text.contains("\n")) {
-            return text;
+            return text
         }
-        text = SafeHtmlBuilder.asis(text).wikify().asString();
-        text = text.replace("</p><p>", "</p><br/><p>"); // otherwise paragraph breaks are not visible in IntelliJ...
-        return text;
+        text = SafeHtml.Companion.asis(text).wikify()!!.asString()
+        text = text.replace("</p><p>", "</p><br/><p>") // otherwise paragraph breaks are not visible in IntelliJ...
+        return text
     }
 }

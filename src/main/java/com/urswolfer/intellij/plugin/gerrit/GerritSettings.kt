@@ -14,24 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit
 
-package com.urswolfer.intellij.plugin.gerrit;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
-import com.intellij.credentialStore.CredentialAttributes;
-import com.intellij.credentialStore.Credentials;
-import com.intellij.ide.passwordSafe.PasswordSafe;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.components.PersistentStateComponent;
-import com.intellij.openapi.components.State;
-import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.diagnostic.Logger;
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.intellij.plugin.gerrit.ui.ShowProjectColumn;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.google.common.base.Optional
+import com.google.common.base.Strings
+import com.intellij.credentialStore.CredentialAttributes
+import com.intellij.credentialStore.Credentials
+import com.intellij.ide.passwordSafe.PasswordSafe
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
+import com.intellij.openapi.diagnostic.Logger
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.intellij.plugin.gerrit.ui.ShowProjectColumn
+import org.jdom.Element
 
 /**
  * Parts based on org.jetbrains.plugins.github.GithubSettings
@@ -39,260 +36,156 @@ import org.jetbrains.annotations.Nullable;
  * @author oleg
  * @author Urs Wolfer
  */
-@State(name = "GerritSettings", storages = @Storage("gerrit_settings.xml"))
-public class GerritSettings implements PersistentStateComponent<Element>, GerritAuthData {
+@State(name = "GerritSettings", storages = [Storage("gerrit_settings.xml")])
+class GerritSettings : PersistentStateComponent<Element>, GerritAuthData {
+    private var login = ""
+    private var host = ""
+    var listAllChanges: Boolean = false
+    var automaticRefresh: Boolean = true
+    var refreshTimeout: Int = 15
+    var reviewNotifications: Boolean = true
+    var pushToGerrit: Boolean = false
+    var showChangeNumberColumn: Boolean = false
+    var showChangeIdColumn: Boolean = false
+    var showTopicColumn: Boolean = false
+    var showProjectColumn: ShowProjectColumn? = ShowProjectColumn.AUTO
+    var cloneBaseUrl: String = ""
+    var forceDefaultBranch: Boolean = false
 
-    private static final String GERRIT_SETTINGS_TAG = "GerritSettings";
-    private static final String LOGIN = "Login";
-    private static final String HOST = "Host";
-    private static final String AUTOMATIC_REFRESH = "AutomaticRefresh";
-    private static final String LIST_ALL_CHANGES = "ListAllChanges";
-    private static final String REFRESH_TIMEOUT = "RefreshTimeout";
-    private static final String REVIEW_NOTIFICATIONS = "ReviewNotifications";
-    private static final String PUSH_TO_GERRIT = "PushToGerrit";
-    private static final String SHOW_CHANGE_NUMBER_COLUMN = "ShowChangeNumberColumn";
-    private static final String SHOW_CHANGE_ID_COLUMN = "ShowChangeIdColumn";
-    private static final String SHOW_TOPIC_COLUMN = "ShowTopicColumn";
-    private static final String SHOW_PROJECT_COLUMN = "ShowProjectColumn";
-    private static final String CLONE_BASE_URL = "CloneBaseUrl";
-    private static final String FORCE_DEFAULT_BRANCH = "ForceDefaultBranch";
-    private static final String GERRIT_SETTINGS_PASSWORD_KEY = "GERRIT_SETTINGS_PASSWORD_KEY";
-    private static final CredentialAttributes CREDENTIAL_ATTRIBUTES = new CredentialAttributes(GerritSettings.class.getName(), GERRIT_SETTINGS_PASSWORD_KEY);
+    private var preloadedPassword: String? = null
 
-    private String login = "";
-    private String host = "";
-    private boolean listAllChanges = false;
-    private boolean automaticRefresh = true;
-    private int refreshTimeout = 15;
-    private boolean refreshNotifications = true;
-    private boolean pushToGerrit = false;
-    private boolean showChangeNumberColumn = false;
-    private boolean showChangeIdColumn = false;
-    private boolean showTopicColumn = false;
-    private ShowProjectColumn showProjectColumn = ShowProjectColumn.AUTO;
-    private String cloneBaseUrl = "";
-    private boolean forceDefaultBranch = false;
+    private lateinit var log: Logger
 
-    private Optional<String> preloadedPassword;
-
-    private Logger log;
-
-    public Element getState() {
-        final Element element = new Element(GERRIT_SETTINGS_TAG);
-        element.setAttribute(LOGIN, (getLogin() != null ? getLogin() : ""));
-        element.setAttribute(HOST, (getHost() != null ? getHost() : ""));
-        element.setAttribute(LIST_ALL_CHANGES, Boolean.toString(getListAllChanges()));
-        element.setAttribute(AUTOMATIC_REFRESH, Boolean.toString(getAutomaticRefresh()));
-        element.setAttribute(REFRESH_TIMEOUT, Integer.toString(getRefreshTimeout()));
-        element.setAttribute(REVIEW_NOTIFICATIONS, Boolean.toString(getReviewNotifications()));
-        element.setAttribute(PUSH_TO_GERRIT, Boolean.toString(getPushToGerrit()));
-        element.setAttribute(SHOW_CHANGE_NUMBER_COLUMN, Boolean.toString(getShowChangeNumberColumn()));
-        element.setAttribute(SHOW_CHANGE_ID_COLUMN, Boolean.toString(getShowChangeIdColumn()));
-        element.setAttribute(SHOW_TOPIC_COLUMN, Boolean.toString(getShowTopicColumn()));
-        element.setAttribute(SHOW_PROJECT_COLUMN, getShowProjectColumn().name());
-        element.setAttribute(CLONE_BASE_URL, (getCloneBaseUrl() != null ? getCloneBaseUrl() : ""));
-        element.setAttribute(FORCE_DEFAULT_BRANCH, Boolean.toString(getForceDefaultBranch()));
-        return element;
+    override fun getState(): Element {
+        val element = Element(GERRIT_SETTINGS_TAG)
+        element.setAttribute(LOGIN, getLogin())
+        element.setAttribute(HOST, getHost())
+        element.setAttribute(LIST_ALL_CHANGES, listAllChanges.toString())
+        element.setAttribute(AUTOMATIC_REFRESH, automaticRefresh.toString())
+        element.setAttribute(REFRESH_TIMEOUT, refreshTimeout.toString())
+        element.setAttribute(REVIEW_NOTIFICATIONS, reviewNotifications.toString())
+        element.setAttribute(PUSH_TO_GERRIT, pushToGerrit.toString())
+        element.setAttribute(SHOW_CHANGE_NUMBER_COLUMN, showChangeNumberColumn.toString())
+        element.setAttribute(SHOW_CHANGE_ID_COLUMN, showChangeIdColumn.toString())
+        element.setAttribute(SHOW_TOPIC_COLUMN, showTopicColumn.toString())
+        element.setAttribute(SHOW_PROJECT_COLUMN, showProjectColumn!!.name)
+        element.setAttribute(CLONE_BASE_URL, cloneBaseUrl)
+        element.setAttribute(FORCE_DEFAULT_BRANCH, forceDefaultBranch.toString())
+        return element
     }
 
-    public void loadState(@NotNull final Element element) {
+    override fun loadState(element: Element) {
         // All the logic on retrieving password was moved to getPassword action to cleanup initialization process
         try {
-            setLogin(element.getAttributeValue(LOGIN));
-            setHost(element.getAttributeValue(HOST));
+            setLogin(element.getAttributeValue(LOGIN))
+            setHost(element.getAttributeValue(HOST))
 
-            setListAllChanges(getBooleanValue(element, LIST_ALL_CHANGES));
-            setAutomaticRefresh(getBooleanValue(element, AUTOMATIC_REFRESH));
-            setRefreshTimeout(getIntegerValue(element, REFRESH_TIMEOUT));
-            setReviewNotifications(getBooleanValue(element, REVIEW_NOTIFICATIONS));
-            setPushToGerrit(getBooleanValue(element, PUSH_TO_GERRIT));
-            setShowChangeNumberColumn(getBooleanValue(element, SHOW_CHANGE_NUMBER_COLUMN));
-            setShowChangeIdColumn(getBooleanValue(element, SHOW_CHANGE_ID_COLUMN));
-            setShowTopicColumn(getBooleanValue(element, SHOW_TOPIC_COLUMN));
-            setShowProjectColumn(getShowProjectColumnValue(element, SHOW_PROJECT_COLUMN));
-            setCloneBaseUrl(element.getAttributeValue(CLONE_BASE_URL));
-            setForceDefaultBranch(getBooleanValue(element, FORCE_DEFAULT_BRANCH));
-        } catch (Exception e) {
-            log.error("Error happened while loading gerrit settings: " + e);
+            listAllChanges = getBooleanValue(element, LIST_ALL_CHANGES)
+            automaticRefresh = getBooleanValue(element, AUTOMATIC_REFRESH)
+            refreshTimeout = getIntegerValue(element, REFRESH_TIMEOUT)
+            reviewNotifications = getBooleanValue(element, REVIEW_NOTIFICATIONS)
+            pushToGerrit = getBooleanValue(element, PUSH_TO_GERRIT)
+            showChangeNumberColumn = getBooleanValue(element, SHOW_CHANGE_NUMBER_COLUMN)
+            showChangeIdColumn = getBooleanValue(element, SHOW_CHANGE_ID_COLUMN)
+            showTopicColumn = getBooleanValue(element, SHOW_TOPIC_COLUMN)
+            showProjectColumn = getShowProjectColumnValue(element, SHOW_PROJECT_COLUMN)
+            cloneBaseUrl = element.getAttributeValue(CLONE_BASE_URL)
+            forceDefaultBranch = getBooleanValue(element, FORCE_DEFAULT_BRANCH)
+        } catch (e: Exception) {
+            log.error("Error happened while loading gerrit settings: $e")
         }
     }
 
-    private boolean getBooleanValue(Element element, String attributeName) {
-        String attributeValue = element.getAttributeValue(attributeName);
-        if (attributeValue != null) {
-            return Boolean.parseBoolean(attributeValue);
+    private fun getBooleanValue(element: Element, attributeName: String): Boolean {
+        val attributeValue = element.getAttributeValue(attributeName)
+        return attributeValue?.toBoolean() ?: false
+    }
+
+    private fun getIntegerValue(element: Element, attributeName: String): Int {
+        val attributeValue = element.getAttributeValue(attributeName)
+        return attributeValue?.toInt() ?: 0
+    }
+
+    private fun getShowProjectColumnValue(element: Element, attributeName: String): ShowProjectColumn {
+        val attributeValue = element.getAttributeValue(attributeName)
+        return if (attributeValue != null) {
+            ShowProjectColumn.valueOf(attributeValue)
         } else {
-            return false;
+            ShowProjectColumn.AUTO
         }
     }
 
-    private int getIntegerValue(Element element, String attributeName) {
-        String attributeValue = element.getAttributeValue(attributeName);
-        if (attributeValue != null) {
-            return Integer.parseInt(attributeValue);
+    override fun getLogin(): String {
+        return login
+    }
+
+    override fun getPassword(): String {
+        if (!ApplicationManager.getApplication().isDispatchThread) {
+            check(preloadedPassword != null) { "Need to call #preloadPassword when password is required in background thread" }
         } else {
-            return 0;
+            preloadPassword()
         }
+        return preloadedPassword ?: ""
     }
 
-    private ShowProjectColumn getShowProjectColumnValue(Element element, String attributeName) {
-        String attributeValue = element.getAttributeValue(attributeName);
-        if (attributeValue != null) {
-            return ShowProjectColumn.valueOf(attributeValue);
-        } else {
-            return ShowProjectColumn.AUTO;
-        }
+    fun preloadPassword() {
+        val credentials = PasswordSafe.instance.get(CREDENTIAL_ATTRIBUTES)
+        val password = credentials?.getPasswordAsString()
+        preloadedPassword = password
     }
 
-    @Override
-    @Nullable
-    public String getLogin() {
-        return login;
+    override fun isHttpPassword(): Boolean {
+        return false
     }
 
-    @Override
-    @NotNull
-    public String getPassword() {
-        if (!ApplicationManager.getApplication().isDispatchThread()) {
-            if (!preloadedPassword.isPresent()) {
-                throw new IllegalStateException("Need to call #preloadPassword when password is required in background thread");
-            }
-        } else {
-            preloadPassword();
-        }
-        return preloadedPassword.or("");
+    override fun getHost(): String {
+        return host
     }
 
-    public void preloadPassword() {
-        Credentials credentials = PasswordSafe.getInstance().get(CREDENTIAL_ATTRIBUTES);
-        String password = credentials != null ? credentials.getPasswordAsString() : null;
-        preloadedPassword = Optional.fromNullable(password);
+    override fun isLoginAndPasswordAvailable(): Boolean {
+        return !Strings.isNullOrEmpty(getLogin())
     }
 
-    @Override
-    public boolean isHttpPassword() {
-        return false;
+    fun setLogin(login: String?) {
+        this.login = login ?: ""
     }
 
-    @Override
-    public String getHost() {
-        return host;
+    fun setPassword(password: String?) {
+        PasswordSafe.instance.set(CREDENTIAL_ATTRIBUTES, Credentials(null, password ?: ""))
     }
 
-    @Override
-    public boolean isLoginAndPasswordAvailable() {
-        return !Strings.isNullOrEmpty(getLogin());
+    fun forgetPassword() {
+        PasswordSafe.instance.set(CREDENTIAL_ATTRIBUTES, null)
     }
 
-    public boolean getListAllChanges() {
-        return listAllChanges;
+    fun setHost(host: String) {
+        this.host = host
     }
 
-    public void setListAllChanges(boolean listAllChanges) {
-        this.listAllChanges = listAllChanges;
+    fun setLog(log: Logger) {
+        this.log = log
     }
 
-    public boolean getAutomaticRefresh() {
-        return automaticRefresh;
-    }
+    val cloneBaseUrlOrHost: String
+        get() = if (Strings.isNullOrEmpty(cloneBaseUrl)) host else cloneBaseUrl
 
-    public int getRefreshTimeout() {
-        return refreshTimeout;
-    }
-
-    public boolean getReviewNotifications() {
-        return refreshNotifications;
-    }
-
-    public void setLogin(final String login) {
-        this.login = login != null ? login : "";
-    }
-
-    public void setPassword(final String password) {
-        PasswordSafe.getInstance().set(CREDENTIAL_ATTRIBUTES, new Credentials(null, password != null ? password : ""));
-    }
-
-    public void forgetPassword() {
-        PasswordSafe.getInstance().set(CREDENTIAL_ATTRIBUTES, null);
-    }
-
-    public void setHost(final String host) {
-        this.host = host;
-    }
-
-    public void setAutomaticRefresh(final boolean automaticRefresh) {
-        this.automaticRefresh = automaticRefresh;
-    }
-
-    public void setRefreshTimeout(final int refreshTimeout) {
-        this.refreshTimeout = refreshTimeout;
-    }
-
-    public void setReviewNotifications(final boolean reviewNotifications) {
-        refreshNotifications = reviewNotifications;
-    }
-
-    public void setPushToGerrit(boolean pushToGerrit) {
-        this.pushToGerrit = pushToGerrit;
-    }
-
-    public boolean getPushToGerrit() {
-        return pushToGerrit;
-    }
-
-    public boolean getShowChangeNumberColumn() {
-        return showChangeNumberColumn;
-    }
-
-    public void setShowChangeNumberColumn(boolean showChangeNumberColumn) {
-        this.showChangeNumberColumn = showChangeNumberColumn;
-    }
-
-    public boolean getShowChangeIdColumn() {
-        return showChangeIdColumn;
-    }
-
-    public void setShowChangeIdColumn(boolean showChangeIdColumn) {
-        this.showChangeIdColumn = showChangeIdColumn;
-    }
-
-    public boolean getShowTopicColumn() {
-        return showTopicColumn;
-    }
-
-    public ShowProjectColumn getShowProjectColumn() {
-        return showProjectColumn;
-    }
-
-    public void setShowProjectColumn(ShowProjectColumn showProjectColumn) {
-        this.showProjectColumn = showProjectColumn;
-    }
-
-    public void setShowTopicColumn(boolean showTopicColumn) {
-        this.showTopicColumn = showTopicColumn;
-    }
-
-    public void setCloneBaseUrl(String cloneBaseUrl) {
-        this.cloneBaseUrl = cloneBaseUrl;
-    }
-
-    public String getCloneBaseUrl() {
-        return cloneBaseUrl;
-    }
-
-    public void setForceDefaultBranch(boolean forceDefaultBranch) {
-        this.forceDefaultBranch = forceDefaultBranch;
-    }
-
-    public boolean getForceDefaultBranch() {
-         return this.forceDefaultBranch;
-    }
-
-    public void setLog(Logger log) {
-        this.log = log;
-    }
-
-    public String getCloneBaseUrlOrHost() {
-        return Strings.isNullOrEmpty(cloneBaseUrl) ? host : cloneBaseUrl;
+    companion object {
+        private const val GERRIT_SETTINGS_TAG = "GerritSettings"
+        private const val LOGIN = "Login"
+        private const val HOST = "Host"
+        private const val AUTOMATIC_REFRESH = "AutomaticRefresh"
+        private const val LIST_ALL_CHANGES = "ListAllChanges"
+        private const val REFRESH_TIMEOUT = "RefreshTimeout"
+        private const val REVIEW_NOTIFICATIONS = "ReviewNotifications"
+        private const val PUSH_TO_GERRIT = "PushToGerrit"
+        private const val SHOW_CHANGE_NUMBER_COLUMN = "ShowChangeNumberColumn"
+        private const val SHOW_CHANGE_ID_COLUMN = "ShowChangeIdColumn"
+        private const val SHOW_TOPIC_COLUMN = "ShowTopicColumn"
+        private const val SHOW_PROJECT_COLUMN = "ShowProjectColumn"
+        private const val CLONE_BASE_URL = "CloneBaseUrl"
+        private const val FORCE_DEFAULT_BRANCH = "ForceDefaultBranch"
+        private const val GERRIT_SETTINGS_PASSWORD_KEY = "GERRIT_SETTINGS_PASSWORD_KEY"
+        private val CREDENTIAL_ATTRIBUTES =
+            CredentialAttributes(GerritSettings::class.java.name, GERRIT_SETTINGS_PASSWORD_KEY)
     }
 }

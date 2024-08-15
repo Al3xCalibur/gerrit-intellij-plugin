@@ -13,183 +13,160 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.action
 
-package com.urswolfer.intellij.plugin.gerrit.ui.action;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.gerrit.extensions.api.GerritApi;
-import com.google.gerrit.extensions.common.AccountInfo;
-import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.SuggestedReviewerInfo;
-import com.google.gerrit.extensions.restapi.RestApiException;
-import com.google.inject.Inject;
-import com.intellij.codeInsight.completion.CompletionResultSet;
-import com.intellij.codeInsight.lookup.LookupElementBuilder;
-import com.intellij.icons.AllIcons;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.editor.SpellCheckingEditorCustomizationProvider;
-import com.intellij.openapi.fileTypes.FileTypes;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.DialogWrapper;
-import com.intellij.ui.EditorCustomization;
-import com.intellij.ui.EditorTextField;
-import com.intellij.ui.EditorTextFieldProvider;
-import com.intellij.ui.SoftWrapsEditorCustomization;
-import com.intellij.util.TextFieldCompletionProviderDumbAware;
-import com.urswolfer.gerrit.client.rest.GerritRestApi;
-import com.urswolfer.intellij.plugin.gerrit.GerritModule;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import com.google.common.base.*
+import com.google.gerrit.extensions.api.GerritApi
+import com.google.gerrit.extensions.common.*
+import com.google.gerrit.extensions.restapi.RestApiException
+import com.google.inject.Inject
+import com.intellij.codeInsight.completion.CompletionResultSet
+import com.intellij.codeInsight.lookup.LookupElementBuilder
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.SpellCheckingEditorCustomizationProvider
+import com.intellij.openapi.fileTypes.FileTypes
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.ui.EditorCustomization
+import com.intellij.ui.EditorTextField
+import com.intellij.ui.EditorTextFieldProvider
+import com.intellij.ui.SoftWrapsEditorCustomization
+import com.intellij.util.TextFieldCompletionProviderDumbAware
+import com.urswolfer.gerrit.client.rest.GerritRestApi
+import com.urswolfer.intellij.plugin.gerrit.GerritModule
+import java.awt.Dimension
+import javax.swing.JComponent
 
 /**
  * @author Urs Wolfer
  */
-@SuppressWarnings("ComponentNotRegistered") // proxy class below is registered
-public class AddReviewersAction extends AbstractLoggedInChangeAction {
+// proxy class below is registered
+open class AddReviewersAction :
+    AbstractLoggedInChangeAction("Add Reviewers", "Add Reviewers to Change", AllIcons.Toolwindows.ToolWindowTodo) {
     @Inject
-    private GerritRestApi gerritApi;
+    private val gerritApi: GerritRestApi? = null
 
-    public AddReviewersAction() {
-        super("Add Reviewers", "Add Reviewers to Change", AllIcons.Toolwindows.ToolWindowTodo);
-    }
+    override fun actionPerformed(anActionEvent: AnActionEvent) {
+        val project = anActionEvent.getData(PlatformDataKeys.PROJECT)
 
-    @Override
-    public void actionPerformed(AnActionEvent anActionEvent) {
-        final Project project = anActionEvent.getData(PlatformDataKeys.PROJECT);
+        val selectedChange = getSelectedChange(anActionEvent) ?: return
 
-        Optional<ChangeInfo> selectedChange = getSelectedChange(anActionEvent);
-        if (!selectedChange.isPresent()) {
-            return;
+        val dialog = AddReviewersDialog(project, true, gerritApi, selectedChange)
+        dialog.show()
+        if (!dialog.isOK) {
+            return
         }
-
-        AddReviewersDialog dialog = new AddReviewersDialog(project, true, gerritApi, selectedChange.get());
-        dialog.show();
-        if (!dialog.isOK()) {
-            return;
-        }
-        String content = dialog.reviewTextField.getText();
-        Iterable<String> reviewerNames = Splitter.on(',').omitEmptyStrings().trimResults().split(content);
-        for (String reviewerName : reviewerNames) {
-            gerritUtil.addReviewer(selectedChange.get().id, reviewerName, project);
+        val content = dialog.reviewTextField.text
+        val reviewerNames = Splitter.on(',').omitEmptyStrings().trimResults().split(content)
+        for (reviewerName in reviewerNames) {
+            gerritUtil.addReviewer(selectedChange.id, reviewerName, project)
         }
     }
 
-    private static class AddReviewersDialog extends DialogWrapper {
-        private final EditorTextField reviewTextField;
+    private class AddReviewersDialog(
+        project: Project?,
+        canBeParent: Boolean,
+        gerritApi: GerritApi?,
+        changeInfo: ChangeInfo?
+    ) : DialogWrapper(project, canBeParent) {
+        val reviewTextField: EditorTextField
 
-        protected AddReviewersDialog(Project project,
-                                     boolean canBeParent,
-                                     final GerritApi gerritApi,
-                                     final ChangeInfo changeInfo) {
-            super(project, canBeParent);
-            setTitle("Add Reviewers to Change");
-            setOKButtonText("Add Reviewers");
+        init {
+            title = "Add Reviewers to Change"
+            setOKButtonText("Add Reviewers")
 
-            EditorTextFieldProvider service = ApplicationManager.getApplication().getService(EditorTextFieldProvider.class);
-            Set<EditorCustomization> editorFeatures = new HashSet<EditorCustomization>();
-            editorFeatures.add(SoftWrapsEditorCustomization.ENABLED);
-            editorFeatures.add(SpellCheckingEditorCustomizationProvider.getInstance().getDisabledCustomization());
-            reviewTextField = service.getEditorField(FileTypes.PLAIN_TEXT.getLanguage(), project, editorFeatures);
-            reviewTextField.setMinimumSize(new Dimension(500, 100));
-            buildTextFieldCompletion(gerritApi, changeInfo);
+            val service = ApplicationManager.getApplication().getService(
+                EditorTextFieldProvider::class.java
+            )
+            val editorFeatures: MutableSet<EditorCustomization?> = HashSet()
+            editorFeatures.add(SoftWrapsEditorCustomization.ENABLED)
+            editorFeatures.add(SpellCheckingEditorCustomizationProvider.getInstance().disabledCustomization)
+            reviewTextField = service.getEditorField(FileTypes.PLAIN_TEXT.language, project!!, editorFeatures)
+            reviewTextField.minimumSize = Dimension(500, 100)
+            buildTextFieldCompletion(gerritApi, changeInfo)
 
-            init();
+            init()
         }
 
-        private void buildTextFieldCompletion(final GerritApi gerritApi, final ChangeInfo changeInfo) {
-            TextFieldCompletionProviderDumbAware completionProvider = new TextFieldCompletionProviderDumbAware(true) {
-                @NotNull
-                @Override
-                protected String getPrefix(@NotNull String currentTextPrefix) {
-                    int text = currentTextPrefix.lastIndexOf(',');
-                    return text == -1 ? currentTextPrefix : currentTextPrefix.substring(text + 1).trim();
-                }
-
-                @Override
-                protected void addCompletionVariants(@NotNull final String text,
-                                                     int offset,
-                                                     @NotNull final String prefix,
-                                                     @NotNull final CompletionResultSet result) {
-                    if (Strings.isNullOrEmpty(prefix)) {
-                        return;
+        private fun buildTextFieldCompletion(gerritApi: GerritApi?, changeInfo: ChangeInfo?) {
+            val completionProvider: TextFieldCompletionProviderDumbAware =
+                object : TextFieldCompletionProviderDumbAware(true) {
+                    override fun getPrefix(currentTextPrefix: String): String {
+                        val text = currentTextPrefix.lastIndexOf(',')
+                        return if (text == -1) currentTextPrefix else currentTextPrefix.substring(text + 1)
+                            .trim { it <= ' ' }
                     }
-                    try {
-                        List<SuggestedReviewerInfo> suggestedReviewers = gerritApi.changes()
-                            .id(changeInfo._number).suggestReviewers(prefix).withLimit(20).get();
-                        if (result.isStopped()) {
-                            return;
+
+                    override fun addCompletionVariants(
+                        text: String,
+                        offset: Int,
+                        prefix: String,
+                        result: CompletionResultSet
+                    ) {
+                        if (Strings.isNullOrEmpty(prefix)) {
+                            return
                         }
-                        for (SuggestedReviewerInfo suggestedReviewer : suggestedReviewers) {
-                            Optional<LookupElementBuilder> lookupElementBuilderOptional = buildLookupElement(suggestedReviewer);
-                            if (lookupElementBuilderOptional.isPresent()) {
-                                result.addElement(lookupElementBuilderOptional.get());
+                        try {
+                            val suggestedReviewers = gerritApi!!.changes()
+                                .id(changeInfo!!._number).suggestReviewers(prefix).withLimit(20).get()
+                            if (result.isStopped) {
+                                return
                             }
+                            for (suggestedReviewer in suggestedReviewers) {
+                                val lookupElementBuilderOptional = buildLookupElement(suggestedReviewer)
+                                if (lookupElementBuilderOptional.isPresent) {
+                                    result.addElement(lookupElementBuilderOptional.get())
+                                }
+                            }
+                        } catch (e: RestApiException) {
+                            throw RuntimeException(e)
                         }
-                    } catch (RestApiException e) {
-                        throw new RuntimeException(e);
                     }
                 }
-            };
-            completionProvider.apply(reviewTextField);
+            completionProvider.apply(reviewTextField)
         }
 
-        private Optional<LookupElementBuilder> buildLookupElement(SuggestedReviewerInfo suggestedReviewer) {
-            String presentableText;
-            String reviewerName;
+        private fun buildLookupElement(suggestedReviewer: SuggestedReviewerInfo): Optional<LookupElementBuilder> {
+            val presentableText: String
+            val reviewerName: String
             if (suggestedReviewer.account != null) {
-                AccountInfo account = suggestedReviewer.account;
-                if (account.email != null) {
-                    presentableText = String.format("%s <%s>", account.name, account.email);
+                val account = suggestedReviewer.account
+                presentableText = if (account.email != null) {
+                    String.format("%s <%s>", account.name, account.email)
                 } else {
-                    presentableText = String.format("%s (%s)", account.name, account._accountId);
+                    String.format("%s (%s)", account.name, account._accountId)
                 }
-                reviewerName = presentableText;
+                reviewerName = presentableText
             } else if (suggestedReviewer.group != null) {
-                presentableText = String.format("%s (group)", suggestedReviewer.group.name);
-                reviewerName = suggestedReviewer.group.name;
+                presentableText = String.format("%s (group)", suggestedReviewer.group.name)
+                reviewerName = suggestedReviewer.group.name
             } else {
-                return Optional.absent();
+                return Optional.absent()
             }
-            return Optional.of(LookupElementBuilder.create(reviewerName + ',').withPresentableText(presentableText));
+            return Optional.of(LookupElementBuilder.create("$reviewerName,").withPresentableText(presentableText))
         }
 
-        @Nullable
-        @Override
-        protected JComponent createCenterPanel() {
-            return reviewTextField;
+        override fun createCenterPanel(): JComponent {
+            return reviewTextField
         }
 
-        @Override
-        public JComponent getPreferredFocusedComponent() {
-            return reviewTextField;
+        override fun getPreferredFocusedComponent(): JComponent {
+            return reviewTextField
         }
     }
 
-    public static class Proxy extends AddReviewersAction {
-        private final AddReviewersAction delegate;
+    class Proxy : AddReviewersAction() {
+        private val delegate: AddReviewersAction = GerritModule.getInstance<AddReviewersAction>()
 
-        public Proxy() {
-            delegate = GerritModule.getInstance(AddReviewersAction.class);
+        override fun update(e: AnActionEvent) {
+            delegate.update(e)
         }
 
-        @Override
-        public void update(AnActionEvent e) {
-            delegate.update(e);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            delegate.actionPerformed(e);
+        override fun actionPerformed(e: AnActionEvent) {
+            delegate.actionPerformed(e)
         }
     }
 }

@@ -13,33 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.rest
 
-package com.urswolfer.intellij.plugin.gerrit.rest;
+import com.google.inject.Inject
+import com.intellij.openapi.diagnostic.Logger
+import com.urswolfer.gerrit.client.rest.GerritAuthData
+import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension
+import org.apache.http.HttpRequest
+import org.apache.http.HttpRequestInterceptor
+import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.protocol.HttpContext
 
-import com.google.inject.Inject;
-import com.intellij.openapi.diagnostic.Logger;
-import com.urswolfer.gerrit.client.rest.GerritAuthData;
-import com.urswolfer.gerrit.client.rest.http.HttpClientBuilderExtension;
-import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.protocol.HttpContext;
-
-import java.io.IOException;
-
-public class LoggerHttpClientBuilderExtension extends HttpClientBuilderExtension {
-
-    @Inject
-    private Logger log;
-
-    @Override
-    public HttpClientBuilder extend(HttpClientBuilder httpClientBuilder, GerritAuthData authData) {
-        httpClientBuilder.addInterceptorFirst((HttpRequestInterceptor) (httpRequest, httpContext) -> {
-            if (log.isDebugEnabled()) {
-                log.debug(httpRequest.toString());
+class LoggerHttpClientBuilderExtension @Inject constructor(
+    private val log: Logger
+) : HttpClientBuilderExtension() {
+    override fun extend(httpClientBuilder: HttpClientBuilder, authData: GerritAuthData): HttpClientBuilder {
+        httpClientBuilder.addInterceptorFirst { httpRequest: HttpRequest, _: HttpContext? ->
+            if (log.isDebugEnabled) {
+                log.debug(httpRequest.toString())
             }
-        });
-        return httpClientBuilder;
+        }
+        return httpClientBuilder
     }
 }

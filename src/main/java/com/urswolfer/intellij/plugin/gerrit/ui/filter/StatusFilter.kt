@@ -13,103 +13,87 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.urswolfer.intellij.plugin.gerrit.ui.filter
 
-package com.urswolfer.intellij.plugin.gerrit.ui.filter;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
-import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.Set;
+import com.google.common.base.Joiner
+import com.google.common.base.Optional
+import com.google.common.base.Supplier
+import com.google.common.collect.ImmutableList
+import com.google.common.collect.Sets
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
+import com.intellij.util.Consumer
+import com.urswolfer.intellij.plugin.gerrit.ui.BasePopupAction
 
 /**
  * @author Thomas Forrer
  */
-public class StatusFilter extends AbstractChangesFilter {
-    private static final ImmutableList<Status> STATUSES = ImmutableList.of(
-            new Status("All", null),
-            new Status("Open", "open"),
-            new Status("Merged", "merged"),
-            new Status("Abandoned", "abandoned"),
-            new Status("Drafts", "draft")
-    );
+class StatusFilter : AbstractChangesFilter() {
+    private var value: Optional<Status>
 
-    private static final Supplier<String> QUERY_FOR_ALL = () -> {
-        Set<String> queryForAll = Sets.newHashSet();
-        for (Status status : STATUSES) {
-            if (status.forQuery.isPresent()) {
-                queryForAll.add(String.format("is:%s", status.forQuery.get()));
-            }
-        }
-        return String.format("(%s)", Joiner.on("+OR+").join(queryForAll));
-    };
-
-    private Optional<Status> value;
-
-    public StatusFilter() {
-        value = Optional.of(STATUSES.get(1));
+    init {
+        value = Optional.of(
+            STATUSES[1]
+        )
     }
 
-    @Override
-    public AnAction getAction(final Project project) {
-        return new StatusPopupAction(project, "Status");
+    override fun getAction(project: Project?): AnAction {
+        return StatusPopupAction(project, "Status")
     }
 
-    @Override
-    @Nullable
-    public String getSearchQueryPart() {
-        if (value.isPresent()) {
-            if (value.get().forQuery.isPresent()) {
-                return String.format("is:%s", value.get().forQuery.get());
+    override val searchQueryPart: String?
+        get() = if (value.isPresent) {
+            if (value.get().forQuery.isPresent) {
+                String.format("is:%s", value.get().forQuery.get())
             } else {
-                return QUERY_FOR_ALL.get();
+                QUERY_FOR_ALL.get()
             }
         } else {
-            return null;
+            null
         }
+
+    private class Status(val label: String, forQuery: String?) {
+        val forQuery: Optional<String> = Optional.fromNullable(forQuery)
     }
 
-    private static final class Status {
-        final String label;
-        final Optional<String> forQuery;
-
-        private Status(String label, String forQuery) {
-            this.label = label;
-            this.forQuery = Optional.fromNullable(forQuery);
-        }
-    }
-
-    public final class StatusPopupAction extends BasePopupAction {
-        private final Project project;
-
-        public StatusPopupAction(Project project, String labelText) {
-            super(labelText);
-            this.project = project;
-            updateFilterValueLabel(value.get().label);
+    inner class StatusPopupAction(private val project: Project?, labelText: String) : BasePopupAction(labelText) {
+        init {
+            updateFilterValueLabel(value.get().label)
         }
 
-        @Override
-        protected void createActions(Consumer<AnAction> actionConsumer) {
-            for (final Status status : STATUSES) {
-                actionConsumer.consume(new DumbAwareAction(status.label) {
-                    @Override
-                    public void actionPerformed(AnActionEvent e) {
-                        value = Optional.of(status);
-                        updateFilterValueLabel(status.label);
-                        setChanged();
-                        notifyObservers(project);
+        override fun createActions(actionConsumer: Consumer<AnAction?>) {
+            for (status in STATUSES) {
+                actionConsumer.consume(object : DumbAwareAction(status.label) {
+                    override fun actionPerformed(e: AnActionEvent) {
+                        value = Optional.of(status)
+                        updateFilterValueLabel(status.label)
+                        setChanged()
+                        notifyObservers(project)
                     }
-                });
+                })
             }
+        }
+    }
+
+    companion object {
+        private val STATUSES: ImmutableList<Status> = ImmutableList.of(
+            Status("All", null),
+            Status("Open", "open"),
+            Status("Merged", "merged"),
+            Status("Abandoned", "abandoned"),
+            Status("Drafts", "draft")
+        )
+
+        private val QUERY_FOR_ALL = Supplier {
+            val queryForAll: MutableSet<String?> = Sets.newHashSet()
+            for (status in STATUSES) {
+                if (status.forQuery.isPresent) {
+                    queryForAll.add(String.format("is:%s", status.forQuery.get()))
+                }
+            }
+            String.format("(%s)", Joiner.on("+OR+").join(queryForAll))
         }
     }
 }
