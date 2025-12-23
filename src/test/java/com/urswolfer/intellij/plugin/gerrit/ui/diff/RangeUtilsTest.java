@@ -17,7 +17,7 @@
 package com.urswolfer.intellij.plugin.gerrit.ui.diff;
 
 import com.google.gerrit.extensions.client.Comment;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class RangeUtilsTest {
@@ -28,20 +28,20 @@ public class RangeUtilsTest {
     public void testTextOffsetToRangeSingleLine() throws Exception {
         Comment.Range range = RangeUtils.textOffsetToRange(STRING, 22, 27); // word "break"
 
-        Assert.assertEquals(2, range.startLine);
-        Assert.assertEquals(6, range.startCharacter);
-        Assert.assertEquals(2, range.endLine);
-        Assert.assertEquals(11, range.endCharacter);
+        Assert.assertEquals(range.startLine, 2);
+        Assert.assertEquals(range.startCharacter, 6);
+        Assert.assertEquals(range.endLine, 2);
+        Assert.assertEquals(range.endCharacter, 11);
     }
 
     @Test
     public void testTextOffsetToRangeMultiLine() throws Exception {
         Comment.Range range = RangeUtils.textOffsetToRange(STRING, 11, 20); // "with\nline"
 
-        Assert.assertEquals(1, range.startLine);
-        Assert.assertEquals(11, range.startCharacter);
-        Assert.assertEquals(2, range.endLine);
-        Assert.assertEquals(4, range.endCharacter);
+        Assert.assertEquals(range.startLine, 1);
+        Assert.assertEquals(range.startCharacter, 11);
+        Assert.assertEquals(range.endLine, 2);
+        Assert.assertEquals(range.endCharacter, 4);
     }
 
     @Test
@@ -53,8 +53,8 @@ public class RangeUtilsTest {
         range.endCharacter = 11;
         RangeUtils.Offset offset = RangeUtils.rangeToTextOffset(STRING, range);
 
-        Assert.assertEquals(22, offset.start);
-        Assert.assertEquals(27, offset.end);
+        Assert.assertEquals(offset.start, 22);
+        Assert.assertEquals(offset.end, 27);
     }
 
     @Test
@@ -66,7 +66,7 @@ public class RangeUtilsTest {
         range.endCharacter = 4;
         RangeUtils.Offset offset = RangeUtils.rangeToTextOffset(STRING, range);
 
-        Assert.assertEquals(11, offset.start);
-        Assert.assertEquals(20, offset.end);
+        Assert.assertEquals(offset.start, 11);
+        Assert.assertEquals(offset.end, 20);
     }
 }

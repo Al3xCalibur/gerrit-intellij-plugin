@@ -15,15 +15,16 @@
  */
 
 plugins {
-    id 'org.jetbrains.intellij' version '1.17.4'
+    id 'org.jetbrains.intellij.platform' version '2.10.5'
 }
 
 apply plugin: 'java'
 
-targetCompatibility = javaVersion
-sourceCompatibility = javaVersion
-
-tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    targetCompatibility = javaVersion
+    sourceCompatibility = javaVersion
+}
 
 sourceSets {
     main {
@@ -37,9 +38,17 @@ sourceSets {
 repositories {
     mavenLocal()
     mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 dependencies {
+    intellijPlatform {
+        create("IC", ideaVersion)
+        plugins(['git4idea:201.8538.4'])
+    }
+
     implementation ('com.google.inject:guice:5.1.0') {
         exclude group: 'com.google.guava', module: 'guava'
     }
@@ -58,12 +67,14 @@ dependencies {
     testImplementation 'org.easymock:easymock:5.6.0'
 }
 
-intellij {
-    version = ideaVersion
-    pluginName = 'gerrit-intellij-plugin'
-    updateSinceUntilBuild = false
-    downloadSources = Boolean.valueOf(downloadIdeaSources)
-    plugins = ['git4idea']
+intellijPlatform {
+    pluginConfiguration {
+        name = 'gerrit-intellij-plugin'
+
+        ideaVersion {
+            sinceBuild = '203.4818.26'
+        }
+    }
 
     publishPlugin {
         channels = [ijPluginRepoChannel]
