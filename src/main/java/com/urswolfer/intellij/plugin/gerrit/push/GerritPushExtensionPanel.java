@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.intellij.ide.DataManager;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
@@ -50,7 +51,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
 /**
@@ -121,15 +121,16 @@ public class GerritPushExtensionPanel extends JPanel {
             public void run(@NotNull ProgressIndicator progressIndicator) {
                 Optional<String> branchName = Optional.absent();
                 if (forceDefaultBranch) {
-                    Optional<String> gitReviewBranchName = getGitReviewBranchName();
+                    Optional<String> gitReviewBranchName = ReadAction.compute(() -> getGitReviewBranchName());
                     if (gitReviewBranchName.isPresent()) {
                         branchName = gitReviewBranchName;
                     } else {
                         branchName = findDefaultRemoteBranch();
                     }
                 } else if (gerritPushTargetPanels.size() == 1) {
+                    Optional<String> gitReviewBranchName = ReadAction.compute(() -> getGitReviewBranchName());
                     Optional<String> pushTargetBranchName = Optional.of(gerritPushTargetPanels.values().iterator().next());
-                    branchName = getGitReviewBranchName().or(pushTargetBranchName);
+                    branchName = gitReviewBranchName.or(pushTargetBranchName);
                 }
 
                 Optional<String> finalBranchName = branchName;
